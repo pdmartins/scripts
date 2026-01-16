@@ -37,9 +37,9 @@ if ! command -v oh-my-posh &> /dev/null; then
     fi
 else
     echo -e "${GREEN}✅ Oh My Posh já está instalado${NC}"
-    echo -e "${YELLOW}🔄 Atualizando Oh My Posh via Homebrew...${NC}"
+    echo -e "${YELLOW}🔄 Atualizando Oh My Posh...${NC}"
     
-    if brew upgrade oh-my-posh 2>/dev/null || brew upgrade jandedobbeleer/oh-my-posh/oh-my-posh 2>/dev/null; then
+    if sudo oh-my-posh upgrade --force; then
         echo -e "${GREEN}✅ Oh My Posh atualizado com sucesso!${NC}"
     else
         echo -e "${YELLOW}⚠️  Não foi possível atualizar, mas continuando com a versão atual${NC}"

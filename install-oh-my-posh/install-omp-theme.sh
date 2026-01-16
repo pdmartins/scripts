@@ -38,7 +38,7 @@ else
     echo -e "${GREEN}✅ Oh My Posh já está instalado${NC}"
     echo -e "${YELLOW}🔄 Atualizando Oh My Posh...${NC}"
     
-    if curl -s https://ohmyposh.dev/install.sh | bash -s; then
+    if sudo oh-my-posh upgrade --force; then
         echo -e "${GREEN}✅ Oh My Posh atualizado com sucesso!${NC}"
     else
         echo -e "${YELLOW}⚠️  Não foi possível atualizar, mas continuando com a versão atual${NC}"
