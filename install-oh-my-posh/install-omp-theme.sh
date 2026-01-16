@@ -36,6 +36,13 @@ if ! command -v oh-my-posh &> /dev/null; then
     fi
 else
     echo -e "${GREEN}✅ Oh My Posh já está instalado${NC}"
+    echo -e "${YELLOW}🔄 Atualizando Oh My Posh...${NC}"
+    
+    if curl -s https://ohmyposh.dev/install.sh | bash -s; then
+        echo -e "${GREEN}✅ Oh My Posh atualizado com sucesso!${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Não foi possível atualizar, mas continuando com a versão atual${NC}"
+    fi
 fi
 
 # URL do tema

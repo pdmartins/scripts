@@ -27,6 +27,14 @@ if (-not $ohMyPoshInstalled) {
     }
 } else {
     Write-Host "✅ Oh My Posh já está instalado" -ForegroundColor Green
+    Write-Host "🔄 Verificando atualizações..." -ForegroundColor Yellow
+    
+    try {
+        winget upgrade JanDeDobbeleer.OhMyPosh -s winget --accept-package-agreements --accept-source-agreements
+        Write-Host "✅ Oh My Posh atualizado com sucesso!" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠️  Não foi possível atualizar, mas continuando com a versão atual" -ForegroundColor Yellow
+    }
 }
 
 # URL do tema

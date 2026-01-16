@@ -200,11 +200,11 @@
 				{
 					"type": "path",
 					"style": "plain",
-					"template": "[{{ .Path }}]",
+					"template": "[📂 {{ .Path }}]",
 					"foreground": "#e06e03",
 					"options": {
 						"style": "mixed",
-						"folder_icon": "📂 ",
+						"folder_icon": "..",
 						"folder_separator_icon": "/",
 						"home_icon": "🏠"
 					}
