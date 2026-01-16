@@ -30,7 +30,7 @@ if (-not $ohMyPoshInstalled) {
 }
 
 # URL do tema
-$themeUrl = "https://gist.githubusercontent.com/pdmartins/c5846fcfca93ab1737887843e8b81cb6/raw/fb74287495a3b55b06a62188f3a365ed0604d2b1/oh-my-posh-blocks.emoji.omp.json"
+$themeUrl = "https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/install-oh-my-posh/blocks.emoji.omp.json"
 
 # Diretório de temas do Oh My Posh
 $themesPath = "$env:POSH_THEMES_PATH"
