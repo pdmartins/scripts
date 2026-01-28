@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script para instalar tema Oh My Posh personalizado no Ubuntu
+# Script para instalar tema Oh My Posh personalizado no macOS
 # Autor: GitHub Copilot
 # Data: 2026-01-15
 
@@ -12,26 +12,27 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}🎨 Instalando tema Oh My Posh personalizado...${NC}"
 
+# Verificar se Homebrew está instalado
+if ! command -v brew &> /dev/null; then
+    echo -e "${RED}❌ Homebrew não está instalado!${NC}"
+    echo -e "${YELLOW}📦 Por favor, instale o Homebrew primeiro:${NC}"
+    echo -e "   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+    exit 1
+fi
+
 # Verificar se Oh My Posh está instalado
 echo -e "${YELLOW}🔍 Verificando instalação do Oh My Posh...${NC}"
 
 if ! command -v oh-my-posh &> /dev/null; then
     echo -e "${RED}❌ Oh My Posh não está instalado!${NC}"
-    echo -e "${YELLOW}📦 Instalando Oh My Posh...${NC}"
+    echo -e "${YELLOW}📦 Instalando Oh My Posh via Homebrew...${NC}"
     
-    # Instalar Oh My Posh via curl (método oficial)
-    if curl -s https://ohmyposh.dev/install.sh | bash -s; then
+    if brew install jandedobbeleer/oh-my-posh/oh-my-posh; then
         echo -e "${GREEN}✅ Oh My Posh instalado com sucesso!${NC}"
-        
-        # Adicionar ao PATH se necessário
-        if [[ ":$PATH:" != *":/usr/local/bin:"* ]]; then
-            export PATH=$PATH:/usr/local/bin
-        fi
-        
         echo -e "${CYAN}💡 Você pode precisar reiniciar o terminal para usar o Oh My Posh${NC}"
     else
         echo -e "${RED}❌ Erro ao instalar Oh My Posh${NC}"
-        echo -e "${YELLOW}💡 Tente instalar manualmente: curl -s https://ohmyposh.dev/install.sh | bash -s${NC}"
+        echo -e "${YELLOW}💡 Tente instalar manualmente: brew install jandedobbeleer/oh-my-posh/oh-my-posh${NC}"
         exit 1
     fi
 else
@@ -46,7 +47,7 @@ else
 fi
 
 # URL do tema
-THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/install-oh-my-posh/blocks.emoji.omp.json"
+THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/oh-my-posh/blocks.emoji.omp.json"
 
 # Diretório de temas do Oh My Posh
 THEMES_PATH="${HOME}/.poshthemes"
@@ -78,7 +79,7 @@ if [ "$SHELL_NAME" = "zsh" ]; then
     PROFILE_FILE="${HOME}/.zshrc"
     INIT_COMMAND="eval \"\$(oh-my-posh init zsh --config ${THEME_FILE_PATH})\""
 else
-    PROFILE_FILE="${HOME}/.bashrc"
+    PROFILE_FILE="${HOME}/.bash_profile"
     INIT_COMMAND="eval \"\$(oh-my-posh init bash --config ${THEME_FILE_PATH})\""
 fi
 
@@ -94,8 +95,8 @@ fi
 if grep -q "oh-my-posh init" "$PROFILE_FILE"; then
     echo -e "${YELLOW}🔄 Atualizando configuração existente do Oh My Posh no profile...${NC}"
     
-    # Remover linhas antigas do oh-my-posh
-    sed -i '/oh-my-posh init/d' "$PROFILE_FILE"
+    # Remover linhas antigas do oh-my-posh (sintaxe macOS para sed -i)
+    sed -i '' '/oh-my-posh init/d' "$PROFILE_FILE"
     
     # Adicionar nova configuração
     echo "$INIT_COMMAND" >> "$PROFILE_FILE"
