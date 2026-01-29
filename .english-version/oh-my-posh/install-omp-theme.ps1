@@ -83,7 +83,7 @@ if (-not (Test-Path $PROFILE)) {
 
 # Verificar se já existe alguma linha oh-my-posh init no profile
 $ohMyPoshPattern = "oh-my-posh\s+init"
-$newInitLine = "oh-my-posh init pwsh --config `$env:POSH_THEMES_PATH/$themeName | Invoke-Expression"
+$newInitLine = "oh-my-posh init pwsh --config '$themeFilePath' | Invoke-Expression"
 
 if ($profileContent -match $ohMyPoshPattern) {
     Write-Host "🔄 Atualizando configuração existente do Oh My Posh no profile..." -ForegroundColor Yellow
