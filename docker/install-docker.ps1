@@ -60,9 +60,11 @@ if (-not $wslInstalled) {
 # Verificar se existe uma distribuição Linux instalada
 Write-Host "🔍 Verificando distribuições Linux instaladas..." -ForegroundColor Yellow
 
-$distros = wsl --list --quiet 2>$null | Where-Object { $_ -and $_.Trim() -ne "" }
+$distroList = wsl --list --quiet 2>$null | Where-Object { $_ -and $_.Trim() -ne "" -and $_ -notmatch "docker-desktop" }
+# Limpar caracteres nulos que o WSL às vezes retorna
+$distroList = $distroList | ForEach-Object { $_ -replace "`0", "" } | Where-Object { $_.Trim() -ne "" }
 
-if (-not $distros -or $distros.Count -eq 0) {
+if (-not $distroList -or @($distroList).Count -eq 0) {
     Write-Host "📦 Nenhuma distribuição Linux encontrada. Instalando Ubuntu..." -ForegroundColor Yellow
     
     try {
@@ -75,25 +77,46 @@ if (-not $distros -or $distros.Count -eq 0) {
         Write-Host "❌ Erro ao instalar Ubuntu: $_" -ForegroundColor Red
         exit 1
     }
+}
+
+# Converter para array se necessário
+$distroList = @($distroList)
+
+# Selecionar distro
+if ($distroList.Count -eq 1) {
+    $selectedDistro = $distroList[0].Trim()
+    Write-Host "✅ Distribuição Linux encontrada: $selectedDistro" -ForegroundColor Green
 } else {
-    Write-Host "✅ Distribuição Linux encontrada: $($distros[0])" -ForegroundColor Green
+    Write-Host "📋 Múltiplas distribuições Linux encontradas:" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $distroList.Count; $i++) {
+        Write-Host "   [$($i + 1)] $($distroList[$i].Trim())" -ForegroundColor White
+    }
+    Write-Host ""
+    
+    do {
+        $selection = Read-Host "🐧 Escolha a distribuição (1-$($distroList.Count))"
+        $selectionIndex = [int]$selection - 1
+    } while ($selectionIndex -lt 0 -or $selectionIndex -ge $distroList.Count)
+    
+    $selectedDistro = $distroList[$selectionIndex].Trim()
+    Write-Host "✅ Distribuição selecionada: $selectedDistro" -ForegroundColor Green
 }
 
 # Verificar se Docker já está instalado no WSL
-Write-Host "🔍 Verificando se Docker já está instalado no WSL..." -ForegroundColor Yellow
+Write-Host "🔍 Verificando se Docker já está instalado no WSL ($selectedDistro)..." -ForegroundColor Yellow
 
-$dockerInstalled = wsl docker --version 2>$null
+$dockerInstalled = wsl -d $selectedDistro -- docker --version 2>$null
 if ($LASTEXITCODE -eq 0 -and $dockerInstalled) {
     Write-Host "✅ Docker já está instalado no WSL: $dockerInstalled" -ForegroundColor Green
     
     # Verificar se o serviço está rodando
-    $dockerRunning = wsl docker info 2>$null
+    $dockerRunning = wsl -d $selectedDistro -- docker info 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Docker está rodando!" -ForegroundColor Green
     } else {
         Write-Host "⚠️  Docker está instalado mas não está rodando." -ForegroundColor Yellow
         Write-Host "🔄 Iniciando serviço Docker..." -ForegroundColor Yellow
-        wsl sudo service docker start
+        wsl -d $selectedDistro -- sudo service docker start
         if ($LASTEXITCODE -eq 0) {
             Write-Host "✅ Serviço Docker iniciado com sucesso!" -ForegroundColor Green
         } else {
@@ -104,82 +127,37 @@ if ($LASTEXITCODE -eq 0 -and $dockerInstalled) {
 }
 
 # Instalar Docker no WSL
-Write-Host "📦 Instalando Docker Engine no WSL..." -ForegroundColor Yellow
+Write-Host "📦 Instalando Docker Engine no WSL ($selectedDistro)..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "┌─────────────────────────────────────────────────────────────┐" -ForegroundColor Magenta
+Write-Host "│  🐧 Executando no WSL - digite a senha sudo se solicitado  │" -ForegroundColor Magenta
+Write-Host "└─────────────────────────────────────────────────────────────┘" -ForegroundColor Magenta
+Write-Host ""
 
-# Script de instalação do Docker para rodar no WSL
-$dockerInstallScript = @'
-#!/bin/bash
-set -e
+# Obter caminho do script bash (na mesma pasta do script ps1)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$bashScript = Join-Path $scriptDir "install-docker.sh"
 
-# Cores
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-echo -e "${CYAN}🐳 Instalando Docker Engine...${NC}"
-
-# Remover versões antigas se existirem
-echo -e "${YELLOW}🧹 Removendo versões antigas do Docker (se existirem)...${NC}"
-for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
-    sudo apt-get remove -y $pkg 2>/dev/null || true
-done
-
-# Atualizar pacotes
-echo -e "${YELLOW}📦 Atualizando lista de pacotes...${NC}"
-sudo apt-get update
-
-# Instalar dependências
-echo -e "${YELLOW}📦 Instalando dependências...${NC}"
-sudo apt-get install -y ca-certificates curl gnupg
-
-# Adicionar chave GPG oficial do Docker
-echo -e "${YELLOW}🔑 Adicionando chave GPG do Docker...${NC}"
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Adicionar repositório do Docker
-echo -e "${YELLOW}📋 Adicionando repositório do Docker...${NC}"
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Atualizar e instalar Docker
-echo -e "${YELLOW}📦 Instalando Docker Engine...${NC}"
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Adicionar usuário ao grupo docker
-echo -e "${YELLOW}👤 Adicionando usuário ao grupo docker...${NC}"
-sudo usermod -aG docker $USER
-
-# Iniciar serviço Docker
-echo -e "${YELLOW}🚀 Iniciando serviço Docker...${NC}"
-sudo service docker start
-
-# Verificar instalação
-echo -e "${YELLOW}🔍 Verificando instalação...${NC}"
-sudo docker run --rm hello-world
-
-echo -e "${GREEN}✅ Docker Engine instalado com sucesso!${NC}"
-echo -e "${CYAN}💡 Para usar docker sem sudo, faça logout e login novamente ou execute: newgrp docker${NC}"
-'@
-
-# Salvar script temporário e executar no WSL
-$tempScript = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.sh'
-$dockerInstallScript | Out-File -FilePath $tempScript -Encoding utf8 -NoNewline
+# Verificar se o script bash existe
+if (-not (Test-Path $bashScript)) {
+    Write-Host "❌ Script bash não encontrado: $bashScript" -ForegroundColor Red
+    exit 1
+}
 
 # Converter caminho Windows para WSL
-$wslPath = wsl wslpath -u ($tempScript -replace '\\', '/')
+$wslPath = wsl -d $selectedDistro -- wslpath -u ($bashScript -replace '\\', '/')
 
-# Executar script no WSL
+# Executar script no WSL de forma interativa (permite sudo pedir senha)
 Write-Host "🚀 Executando instalação no WSL..." -ForegroundColor Cyan
-wsl bash $wslPath
+Write-Host ""
 
-if ($LASTEXITCODE -eq 0) {
+# Execução direta - permite interação com sudo
+wsl -d $selectedDistro -- bash $wslPath
+$exitCode = $LASTEXITCODE
+
+Write-Host ""
+
+if ($exitCode -eq 0) {
     Write-Host ""
     Write-Host "✅ Docker Engine instalado com sucesso no WSL!" -ForegroundColor Green
     Write-Host ""
@@ -190,10 +168,10 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "💡 Dica: Para usar 'docker' diretamente do PowerShell, adicione ao seu perfil:" -ForegroundColor Yellow
     Write-Host '   function docker { wsl docker $args }' -ForegroundColor Gray
     Write-Host '   function docker-compose { wsl docker compose $args }' -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "   Ou especificando a distro:" -ForegroundColor Yellow
+    Write-Host "   function docker { wsl -d $selectedDistro docker `$args }" -ForegroundColor Gray
 } else {
     Write-Host "❌ Erro durante a instalação do Docker" -ForegroundColor Red
     exit 1
 }
-
-# Limpar arquivo temporário
-Remove-Item -Path $tempScript -Force -ErrorAction SilentlyContinue
