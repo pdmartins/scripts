@@ -54,7 +54,39 @@ scripts/
 
 ## Regras de Código
 
-<when condition="criando/editando script">
+<when condition="criando/editando arquivo *.ps1">
+  <do>
+    1. Ler `.github/instructions/directives/powershell.md` antes de prosseguir
+    2. Seguir templates e padrões da diretiva
+    3. Ler `.github/instructions/directives/sync-rules.md` para sincronização
+  </do>
+</when>
+
+<when condition="criando/editando arquivo *.sh">
+  <do>
+    1. Ler `.github/instructions/directives/bash.md` antes de prosseguir
+    2. Seguir templates e padrões da diretiva
+    3. Ler `.github/instructions/directives/sync-rules.md` para sincronização
+  </do>
+</when>
+
+<when condition="criando/editando README.md">
+  <do>
+    1. Ler `.github/instructions/directives/readme.md` antes de prosseguir
+    2. Seguir estrutura obrigatória da diretiva
+  </do>
+</when>
+
+<when condition="alterando script existente">
+  <do>
+    1. Verificar sync-rules.md para exceções da pasta
+    2. Se NÃO for exceção e existir contraparte (.ps1↔.sh) → sincronizar
+    3. Se mudança funcional → atualizar README.md
+    4. SEMPRE replicar para `.english-version/`
+  </do>
+</when>
+
+<when condition="criando/editando qualquer script">
   <do>
     - Verificar estado antes de alterar (idempotência)
     - Aceitar parâmetros OU solicitar interativamente
@@ -62,6 +94,24 @@ scripts/
     - Tratar erros com try/catch ou set -e
   </do>
 </when>
+
+## Sincronização
+
+<sync-matrix>
+| Ação | PS1↔SH | README | .english-version |
+|------|--------|--------|------------------|
+| Novo script | Se ambos existem | ✓ Criar | ✓ Obrigatório |
+| Alterar lógica | Verificar exceções | Se funcional | ✓ Obrigatório |
+| Alterar params | Verificar exceções | ✓ Obrigatório | ✓ Obrigatório |
+| Fix de bug | Verificar exceções | Se comportamento | ✓ Obrigatório |
+</sync-matrix>
+
+<sync-exceptions>
+| Pasta | PS1↔SH | Motivo |
+|-------|--------|--------|
+| docker | ❌ | PS1 é wrapper do SH |
+| azure | ❌ | Específico Windows |
+</sync-exceptions>
 
 <when condition="script em português (raiz)">
   <do>Criar/atualizar versão equivalente em `.english-version/`</do>
