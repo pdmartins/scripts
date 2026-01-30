@@ -46,7 +46,7 @@ else
 fi
 
 # URL do tema
-THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/oh-my-posh\blocks.emoji.omp.json"
+THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/oh-my-posh/blocks.emoji.omp.json"
 
 # Diretório de temas do Oh My Posh
 THEMES_PATH="${HOME}/.poshthemes"
