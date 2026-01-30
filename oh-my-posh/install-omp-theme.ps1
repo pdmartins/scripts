@@ -37,8 +37,9 @@ if (-not $ohMyPoshInstalled) {
     }
 }
 
-# URL do tema
-$themeUrl = "https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/oh-my-posh/blocks.emoji.omp.json"
+# Diretório do script (onde está o tema local)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$localThemeFile = Join-Path $scriptDir "blocks.emoji.omp.json"
 
 # Diretório de temas do Oh My Posh
 $themesPath = "$env:POSH_THEMES_PATH"
@@ -58,13 +59,19 @@ if (-not (Test-Path $themesPath)) {
     New-Item -ItemType Directory -Path $themesPath -Force | Out-Null
 }
 
-# Baixar o tema
-try {
-    Write-Host "⬇️  Baixando tema do Gist..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $themeUrl -OutFile $themeFilePath -UseBasicParsing
-    Write-Host "✅ Tema baixado com sucesso: $themeFilePath" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Erro ao baixar o tema: $_" -ForegroundColor Red
+# Copiar o tema local
+if (Test-Path $localThemeFile) {
+    Write-Host "📋 Copiando tema local..." -ForegroundColor Yellow
+    try {
+        Copy-Item -Path $localThemeFile -Destination $themeFilePath -Force
+        Write-Host "✅ Tema copiado com sucesso: $themeFilePath" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Erro ao copiar o tema: $_" -ForegroundColor Red
+        exit 1
+    }
+} else {
+    Write-Host "❌ Arquivo de tema não encontrado: $localThemeFile" -ForegroundColor Red
+    Write-Host "💡 Certifique-se de executar o script a partir do diretório correto" -ForegroundColor Yellow
     exit 1
 }
 

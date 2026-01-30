@@ -230,6 +230,59 @@ Para cada script em português na raiz, deve existir uma versão equivalente em 
 - [ ] Tem versão em português e inglês
 - [ ] README da pasta está atualizado
 - [ ] Funciona com parâmetros e interativamente
+- [ ] **NÃO contém dados sensíveis** (senhas, tokens, API keys)
+- [ ] **NÃO contém paths absolutos** (C:\, D:\, /home/user/)
+- [ ] **NÃO contém URLs hardcoded** de repositórios específicos
+
+## 🔒 Segurança e Portabilidade
+
+### NUNCA incluir nos scripts:
+
+1. **Dados sensíveis:**
+   - Senhas, tokens, API keys
+   - IDs de tenant, subscription, ou recursos específicos
+   - Informações pessoais (emails reais, nomes de usuário)
+
+2. **Paths absolutos:**
+   - ❌ `C:\Users\fulano\...`
+   - ❌ `D:\Repos\...`
+   - ❌ `/home/usuario/...`
+   - ❌ `/Users/fulano/...`
+
+3. **URLs hardcoded de repositórios:**
+   - ❌ `https://raw.githubusercontent.com/usuario/repo/...`
+   - Use arquivos locais com `$PSScriptRoot` (PowerShell) ou `${BASH_SOURCE[0]}` (Bash)
+
+### Como obter o diretório do script:
+
+```powershell
+# PowerShell - Obter diretório do script
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$localFile = Join-Path $scriptDir "arquivo.json"
+```
+
+```bash
+# Bash - Obter diretório do script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_FILE="${SCRIPT_DIR}/arquivo.json"
+```
+
+### Paths seguros para usar:
+
+```powershell
+# PowerShell
+$env:USERPROFILE      # C:\Users\<usuario>
+$env:APPDATA          # AppData\Roaming
+$env:LOCALAPPDATA     # AppData\Local
+$env:TEMP             # Diretório temporário
+```
+
+```bash
+# Bash
+$HOME                 # /home/<usuario> ou /Users/<usuario>
+$XDG_CONFIG_HOME      # ~/.config (se definido)
+/tmp                  # Diretório temporário
+```
 
 ## 🔄 Manutenção
 
@@ -239,3 +292,5 @@ Ao atualizar um script:
 2. Manter a paridade de funcionalidades
 3. Atualizar READMEs se necessário
 4. Testar em ambiente limpo (fresh install)
+5. **Verificar se não há dados sensíveis ou paths absolutos**
+

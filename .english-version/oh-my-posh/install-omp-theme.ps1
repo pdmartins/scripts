@@ -37,34 +37,41 @@ if (-not $ohMyPoshInstalled) {
     }
 }
 
-# URL do tema
-$themeUrl = "https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/.english-version/oh-my-posh/blocks.emoji.omp.json"
+# Script directory (where the local theme is)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$localThemeFile = Join-Path $scriptDir "blocks.emoji.omp.json"
 
-# Diretório de temas do Oh My Posh
+# Oh My Posh themes directory
 $themesPath = "$env:POSH_THEMES_PATH"
 if (-not $themesPath) {
     $themesPath = "$env:LOCALAPPDATA\Programs\oh-my-posh\themes"
 }
 
-# Nome do arquivo do tema
+# Theme file name
 $themeName = "blocks.emoji.omp.json"
 $themeFilePath = Join-Path $themesPath $themeName
 
-Write-Host "📁 Diretório de temas: $themesPath" -ForegroundColor Yellow
+Write-Host "📁 Themes directory: $themesPath" -ForegroundColor Yellow
 
-# Criar diretório se não existir
+# Create directory if it doesn't exist
 if (-not (Test-Path $themesPath)) {
-    Write-Host "📂 Criando diretório de temas..." -ForegroundColor Yellow
+    Write-Host "📂 Creating themes directory..." -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $themesPath -Force | Out-Null
 }
 
-# Baixar o tema
-try {
-    Write-Host "⬇️  Baixando tema do Gist..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $themeUrl -OutFile $themeFilePath -UseBasicParsing
-    Write-Host "✅ Tema baixado com sucesso: $themeFilePath" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Erro ao baixar o tema: $_" -ForegroundColor Red
+# Copy local theme
+if (Test-Path $localThemeFile) {
+    Write-Host "📋 Copying local theme..." -ForegroundColor Yellow
+    try {
+        Copy-Item -Path $localThemeFile -Destination $themeFilePath -Force
+        Write-Host "✅ Theme copied successfully: $themeFilePath" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Error copying theme: $_" -ForegroundColor Red
+        exit 1
+    }
+} else {
+    Write-Host "❌ Theme file not found: $localThemeFile" -ForegroundColor Red
+    Write-Host "💡 Make sure to run the script from the correct directory" -ForegroundColor Yellow
     exit 1
 }
 

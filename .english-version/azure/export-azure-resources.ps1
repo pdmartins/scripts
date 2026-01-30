@@ -25,7 +25,7 @@
     .\Export-AzureResourceGroup.ps1 -TenantId "xxx" -SubscriptionId "yyy" -ResourceGroupName "my-rg"
 
 .EXAMPLE
-    .\Export-AzureResourceGroup.ps1 -TenantId "xxx" -SubscriptionId "yyy" -ResourceGroupName "my-rg" -ExportPath "D:\Backup" -SkipLogin
+    .\Export-AzureResourceGroup.ps1 -TenantId "xxx" -SubscriptionId "yyy" -ResourceGroupName "my-rg" -ExportPath ".\backup" -SkipLogin
 
 .NOTES
     Author: Pedro
