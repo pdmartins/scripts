@@ -9,6 +9,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 echo -e "${CYAN}🐳 Installing Docker Engine...${NC}"
@@ -65,7 +66,7 @@ check_docker_installed() {
             echo -e "${YELLOW}⚠️  User is not in docker group${NC}"
             echo -e "${YELLOW}👤 Adding user to docker group...${NC}"
             sudo usermod -aG docker $USER
-            echo -e "${CYAN}💡 Logout and login again to apply the changes${NC}"
+            echo -e "${CYAN}💡 Logout and login again to apply changes${NC}"
         fi
         
         return 0
@@ -93,7 +94,7 @@ install_docker_debian() {
     echo -e "${YELLOW}🔑 Adding Docker GPG key...${NC}"
     sudo install -m 0755 -d /etc/apt/keyrings
     
-    # Determine the correct URL based on distro
+    # Determine correct URL based on distro
     local docker_url="https://download.docker.com/linux/$DISTRO"
     
     curl -fsSL "$docker_url/gpg" | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
@@ -145,7 +146,7 @@ configure_docker() {
 verify_installation() {
     echo -e "${YELLOW}🔍 Verifying installation...${NC}"
     
-    # Use sudo for the test since user needs to logout/login for docker group
+    # Use sudo for test since user needs to logout/login for docker group
     if sudo docker run --rm hello-world; then
         echo -e "${GREEN}✅ Docker Engine installed successfully!${NC}"
         return 0
@@ -162,7 +163,7 @@ main() {
     
     # Check if already installed
     if check_docker_installed; then
-        echo -e "${GREEN}🎉 Docker is already configured and working!${NC}"
+        echo -e "${GREEN}🎉 Docker is already configured and running!${NC}"
         exit 0
     fi
     
@@ -180,8 +181,8 @@ main() {
             install_docker_rhel
             ;;
         *)
-            echo -e "${RED}❌ Distribution '$DISTRO' not automatically supported${NC}"
-            echo -e "${YELLOW}💡 See: https://docs.docker.com/engine/install/${NC}"
+            echo -e "${RED}❌ Distribution '$DISTRO' is not automatically supported${NC}"
+            echo -e "${YELLOW}💡 Check: https://docs.docker.com/engine/install/${NC}"
             exit 1
             ;;
     esac
@@ -205,5 +206,5 @@ main() {
     echo -e "${WHITE}   • docker compose       - Manage multi-containers${NC}"
 }
 
-# Run
+# Execute
 main "$@"
