@@ -3,6 +3,13 @@ applyTo: '**/*.sh'
 ---
 # Bash Script Directives
 
+## Permissão de Execução
+
+<rule id="executable">
+  Após criar/editar arquivo .sh, executar: `git update-index --chmod=+x <arquivo>`
+  Isso garante que o arquivo seja commitado com permissão de execução.
+</rule>
+
 ## Template Base
 
 ```bash
