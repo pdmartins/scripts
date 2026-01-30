@@ -45,8 +45,9 @@ else
     fi
 fi
 
-# URL do tema
-THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/oh-my-posh\blocks.emoji.omp.json"
+# Diretório do script (onde está o tema local)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_THEME_FILE="${SCRIPT_DIR}/blocks.emoji.omp.json"
 
 # Diretório de temas do Oh My Posh
 THEMES_PATH="${HOME}/.poshthemes"
@@ -63,12 +64,18 @@ if [ ! -d "$THEMES_PATH" ]; then
     mkdir -p "$THEMES_PATH"
 fi
 
-# Baixar o tema
-echo -e "${YELLOW}⬇️  Baixando tema do GitHub...${NC}"
-if curl -fsSL "$THEME_URL" -o "$THEME_FILE_PATH"; then
-    echo -e "${GREEN}✅ Tema baixado com sucesso: ${THEME_FILE_PATH}${NC}"
+# Copiar o tema local
+if [ -f "$LOCAL_THEME_FILE" ]; then
+    echo -e "${YELLOW}📋 Copiando tema local...${NC}"
+    if cp "$LOCAL_THEME_FILE" "$THEME_FILE_PATH"; then
+        echo -e "${GREEN}✅ Tema copiado com sucesso: ${THEME_FILE_PATH}${NC}"
+    else
+        echo -e "${RED}❌ Erro ao copiar o tema${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}❌ Erro ao baixar o tema${NC}"
+    echo -e "${RED}❌ Arquivo de tema não encontrado: ${LOCAL_THEME_FILE}${NC}"
+    echo -e "${YELLOW}💡 Certifique-se de executar o script a partir do diretório correto${NC}"
     exit 1
 fi
 

@@ -46,30 +46,37 @@ else
     fi
 fi
 
-# URL do tema
-THEME_URL="https://raw.githubusercontent.com/pdmartins/scripts/refs/heads/main/.english-version/oh-my-posh/blocks.emoji.omp.json"
+# Script directory (where the local theme is)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_THEME_FILE="${SCRIPT_DIR}/blocks.emoji.omp.json"
 
-# Diretório de temas do Oh My Posh
+# Oh My Posh themes directory
 THEMES_PATH="${HOME}/.poshthemes"
 
-# Nome do arquivo do tema
+# Theme file name
 THEME_NAME="blocks.emoji.omp.json"
 THEME_FILE_PATH="${THEMES_PATH}/${THEME_NAME}"
 
-echo -e "${YELLOW}📁 Diretório de temas: ${THEMES_PATH}${NC}"
+echo -e "${YELLOW}📁 Themes directory: ${THEMES_PATH}${NC}"
 
-# Criar diretório se não existir
+# Create directory if it doesn't exist
 if [ ! -d "$THEMES_PATH" ]; then
-    echo -e "${YELLOW}📂 Criando diretório de temas...${NC}"
+    echo -e "${YELLOW}📂 Creating themes directory...${NC}"
     mkdir -p "$THEMES_PATH"
 fi
 
-# Baixar o tema
-echo -e "${YELLOW}⬇️  Baixando tema do GitHub...${NC}"
-if curl -fsSL "$THEME_URL" -o "$THEME_FILE_PATH"; then
-    echo -e "${GREEN}✅ Tema baixado com sucesso: ${THEME_FILE_PATH}${NC}"
+# Copy local theme
+if [ -f "$LOCAL_THEME_FILE" ]; then
+    echo -e "${YELLOW}📋 Copying local theme...${NC}"
+    if cp "$LOCAL_THEME_FILE" "$THEME_FILE_PATH"; then
+        echo -e "${GREEN}✅ Theme copied successfully: ${THEME_FILE_PATH}${NC}"
+    else
+        echo -e "${RED}❌ Error copying theme${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}❌ Erro ao baixar o tema${NC}"
+    echo -e "${RED}❌ Theme file not found: ${LOCAL_THEME_FILE}${NC}"
+    echo -e "${YELLOW}💡 Make sure to run the script from the correct directory${NC}"
     exit 1
 fi
 
