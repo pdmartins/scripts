@@ -98,12 +98,47 @@ if [ ! -f "$PROFILE_FILE" ]; then
     touch "$PROFILE_FILE"
 fi
 
+# Detectar onde o Oh My Posh está instalado (Homebrew coloca em locais diferentes)
+OMP_INSTALL_DIR=""
+if [ -f "/opt/homebrew/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="/opt/homebrew/bin"
+elif [ -f "/usr/local/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="/usr/local/bin"
+elif [ -f "${HOME}/.local/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+# Comando para adicionar ao PATH (se necessário)
+PATH_COMMAND=""
+if [ -n "$OMP_INSTALL_DIR" ]; then
+    if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ]; then
+        PATH_COMMAND="export PATH=\"\$HOME/.local/bin:\$PATH\""
+    elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ]; then
+        PATH_COMMAND="export PATH=\"/opt/homebrew/bin:\$PATH\""
+    fi
+fi
+
 # Verificar se já existe configuração do Oh My Posh
 if grep -q "oh-my-posh init" "$PROFILE_FILE"; then
     echo -e "${YELLOW}🔄 Atualizando configuração existente do Oh My Posh no profile...${NC}"
     
     # Remover linhas antigas do oh-my-posh (sintaxe macOS para sed -i)
     sed -i '' '/oh-my-posh init/d' "$PROFILE_FILE"
+    
+    # Adicionar PATH se necessário e ainda não existir
+    if [ -n "$PATH_COMMAND" ]; then
+        if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ] && ! grep -q '\.local/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adicionando ~/.local/bin ao PATH...${NC}"
+            echo "" >> "$PROFILE_FILE"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+        elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ] && ! grep -q '/opt/homebrew/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adicionando /opt/homebrew/bin ao PATH...${NC}"
+            echo "" >> "$PROFILE_FILE"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+        fi
+    fi
     
     # Adicionar nova configuração
     echo "$INIT_COMMAND" >> "$PROFILE_FILE"
@@ -117,7 +152,23 @@ else
         echo "" >> "$PROFILE_FILE"
     fi
     
+    # Adicionar PATH se necessário e ainda não existir
+    if [ -n "$PATH_COMMAND" ]; then
+        if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ] && ! grep -q '\.local/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adicionando ~/.local/bin ao PATH...${NC}"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+            echo "" >> "$PROFILE_FILE"
+        elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ] && ! grep -q '/opt/homebrew/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adicionando /opt/homebrew/bin ao PATH...${NC}"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+            echo "" >> "$PROFILE_FILE"
+        fi
+    fi
+    
     # Adicionar configuração
+    echo "# Oh My Posh - Theme" >> "$PROFILE_FILE"
     echo "$INIT_COMMAND" >> "$PROFILE_FILE"
     
     echo -e "${GREEN}✅ Oh My Posh adicionado ao profile${NC}"

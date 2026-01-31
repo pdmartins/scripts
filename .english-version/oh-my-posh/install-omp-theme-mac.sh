@@ -1,48 +1,48 @@
 #!/bin/bash
-# Script para instalar tema Oh My Posh personalizado no macOS
-# Autor: GitHub Copilot
-# Data: 2026-01-15
+# Script to install custom Oh My Posh theme on macOS
+# Author: GitHub Copilot
+# Date: 2026-01-15
 
-# Cores para output
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-echo -e "${CYAN}🎨 Instalando tema Oh My Posh personalizado...${NC}"
+echo -e "${CYAN}🎨 Installing custom Oh My Posh theme...${NC}"
 
-# Verificar se Homebrew está instalado
+# Check if Homebrew is installed
 if ! command -v brew &> /dev/null; then
-    echo -e "${RED}❌ Homebrew não está instalado!${NC}"
-    echo -e "${YELLOW}📦 Por favor, instale o Homebrew primeiro:${NC}"
+    echo -e "${RED}❌ Homebrew is not installed!${NC}"
+    echo -e "${YELLOW}📦 Please install Homebrew first:${NC}"
     echo -e "   /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
     exit 1
 fi
 
-# Verificar se Oh My Posh está instalado
-echo -e "${YELLOW}🔍 Verificando instalação do Oh My Posh...${NC}"
+# Check if Oh My Posh is installed
+echo -e "${YELLOW}🔍 Checking Oh My Posh installation...${NC}"
 
 if ! command -v oh-my-posh &> /dev/null; then
-    echo -e "${RED}❌ Oh My Posh não está instalado!${NC}"
-    echo -e "${YELLOW}📦 Instalando Oh My Posh via Homebrew...${NC}"
+    echo -e "${RED}❌ Oh My Posh is not installed!${NC}"
+    echo -e "${YELLOW}📦 Installing Oh My Posh via Homebrew...${NC}"
     
     if brew install jandedobbeleer/oh-my-posh/oh-my-posh; then
-        echo -e "${GREEN}✅ Oh My Posh instalado com sucesso!${NC}"
-        echo -e "${CYAN}💡 Você pode precisar reiniciar o terminal para usar o Oh My Posh${NC}"
+        echo -e "${GREEN}✅ Oh My Posh installed successfully!${NC}"
+        echo -e "${CYAN}💡 You may need to restart the terminal to use Oh My Posh${NC}"
     else
-        echo -e "${RED}❌ Erro ao instalar Oh My Posh${NC}"
-        echo -e "${YELLOW}💡 Tente instalar manualmente: brew install jandedobbeleer/oh-my-posh/oh-my-posh${NC}"
+        echo -e "${RED}❌ Error installing Oh My Posh${NC}"
+        echo -e "${YELLOW}💡 Try installing manually: brew install jandedobbeleer/oh-my-posh/oh-my-posh${NC}"
         exit 1
     fi
 else
-    echo -e "${GREEN}✅ Oh My Posh já está instalado${NC}"
-    echo -e "${YELLOW}🔄 Atualizando Oh My Posh...${NC}"
+    echo -e "${GREEN}✅ Oh My Posh is already installed${NC}"
+    echo -e "${YELLOW}🔄 Updating Oh My Posh...${NC}"
     
     if sudo oh-my-posh upgrade --force; then
-        echo -e "${GREEN}✅ Oh My Posh atualizado com sucesso!${NC}"
+        echo -e "${GREEN}✅ Oh My Posh updated successfully!${NC}"
     else
-        echo -e "${YELLOW}⚠️  Não foi possível atualizar, mas continuando com a versão atual${NC}"
+        echo -e "${YELLOW}⚠️  Could not update, but continuing with current version${NC}"
     fi
 fi
 
@@ -80,7 +80,7 @@ else
     exit 1
 fi
 
-# Detectar shell (bash ou zsh)
+# Detect shell (bash or zsh)
 SHELL_NAME=$(basename "$SHELL")
 if [ "$SHELL_NAME" = "zsh" ]; then
     PROFILE_FILE="${HOME}/.zshrc"
@@ -90,40 +90,91 @@ else
     INIT_COMMAND="eval \"\$(oh-my-posh init bash --config ${THEME_FILE_PATH})\""
 fi
 
-echo -e "${YELLOW}📝 Configurando profile: ${PROFILE_FILE}${NC}"
+echo -e "${YELLOW}📝 Configuring profile: ${PROFILE_FILE}${NC}"
 
-# Criar profile se não existir
+# Create profile if it doesn't exist
 if [ ! -f "$PROFILE_FILE" ]; then
-    echo -e "${YELLOW}📝 Criando arquivo de profile...${NC}"
+    echo -e "${YELLOW}📝 Creating profile file...${NC}"
     touch "$PROFILE_FILE"
 fi
 
-# Verificar se já existe configuração do Oh My Posh
+# Detect where Oh My Posh is installed (Homebrew installs in different locations)
+OMP_INSTALL_DIR=""
+if [ -f "/opt/homebrew/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="/opt/homebrew/bin"
+elif [ -f "/usr/local/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="/usr/local/bin"
+elif [ -f "${HOME}/.local/bin/oh-my-posh" ]; then
+    OMP_INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+# Command to add to PATH (if needed)
+PATH_COMMAND=""
+if [ -n "$OMP_INSTALL_DIR" ]; then
+    if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ]; then
+        PATH_COMMAND="export PATH=\"\$HOME/.local/bin:\$PATH\""
+    elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ]; then
+        PATH_COMMAND="export PATH=\"/opt/homebrew/bin:\$PATH\""
+    fi
+fi
+
+# Check if Oh My Posh configuration already exists
 if grep -q "oh-my-posh init" "$PROFILE_FILE"; then
-    echo -e "${YELLOW}🔄 Atualizando configuração existente do Oh My Posh no profile...${NC}"
+    echo -e "${YELLOW}🔄 Updating existing Oh My Posh configuration in profile...${NC}"
     
-    # Remover linhas antigas do oh-my-posh (sintaxe macOS para sed -i)
+    # Remove old oh-my-posh lines (macOS sed -i syntax)
     sed -i '' '/oh-my-posh init/d' "$PROFILE_FILE"
     
-    # Adicionar nova configuração
+    # Add PATH if needed and not already present
+    if [ -n "$PATH_COMMAND" ]; then
+        if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ] && ! grep -q '\.local/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adding ~/.local/bin to PATH...${NC}"
+            echo "" >> "$PROFILE_FILE"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+        elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ] && ! grep -q '/opt/homebrew/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adding /opt/homebrew/bin to PATH...${NC}"
+            echo "" >> "$PROFILE_FILE"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+        fi
+    fi
+    
+    # Add new configuration
     echo "$INIT_COMMAND" >> "$PROFILE_FILE"
     
-    echo -e "${GREEN}✅ Configuração do Oh My Posh atualizada no profile${NC}"
+    echo -e "${GREEN}✅ Oh My Posh configuration updated in profile${NC}"
 else
-    echo -e "${YELLOW}➕ Adicionando Oh My Posh ao profile...${NC}"
+    echo -e "${YELLOW}➕ Adding Oh My Posh to profile...${NC}"
     
-    # Adicionar linha em branco se o arquivo não estiver vazio
+    # Add blank line if file is not empty
     if [ -s "$PROFILE_FILE" ]; then
         echo "" >> "$PROFILE_FILE"
     fi
     
-    # Adicionar configuração
+    # Add PATH if needed and not already present
+    if [ -n "$PATH_COMMAND" ]; then
+        if [ "$OMP_INSTALL_DIR" = "${HOME}/.local/bin" ] && ! grep -q '\.local/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adding ~/.local/bin to PATH...${NC}"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+            echo "" >> "$PROFILE_FILE"
+        elif [ "$OMP_INSTALL_DIR" = "/opt/homebrew/bin" ] && ! grep -q '/opt/homebrew/bin' "$PROFILE_FILE"; then
+            echo -e "${YELLOW}📍 Adding /opt/homebrew/bin to PATH...${NC}"
+            echo "# Oh My Posh - PATH" >> "$PROFILE_FILE"
+            echo "$PATH_COMMAND" >> "$PROFILE_FILE"
+            echo "" >> "$PROFILE_FILE"
+        fi
+    fi
+    
+    # Add configuration
+    echo "# Oh My Posh - Theme" >> "$PROFILE_FILE"
     echo "$INIT_COMMAND" >> "$PROFILE_FILE"
     
-    echo -e "${GREEN}✅ Oh My Posh adicionado ao profile${NC}"
+    echo -e "${GREEN}✅ Oh My Posh added to profile${NC}"
 fi
 
-echo -e "\n${GREEN}✨ Instalação concluída!${NC}"
-echo -e "${CYAN}📋 Para aplicar as mudanças, execute:${NC}"
+echo -e "\n${GREEN}✨ Installation complete!${NC}"
+echo -e "${CYAN}📋 To apply the changes, run:${NC}"
 echo -e "   ${NC}source ${PROFILE_FILE}${NC}"
-echo -e "\n${CYAN}💡 Ou feche e reabra o terminal${NC}"
+echo -e "\n${CYAN}💡 Or close and reopen the terminal${NC}"
