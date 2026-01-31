@@ -50,11 +50,25 @@ Scripts utilitários de automação — idempotentes, bilíngues (PT na raiz, EN
 ## Skills (Instruções sob Demanda)
 
 <skill-announcement critical="true">
-  <mandate>Ao carregar uma skill, VOCÊ DEVE anunciar no início da resposta:</mandate>
-  <format>🔧 **Skill ativada**: `{nome-da-skill}`</format>
-  <example>🔧 **Skill ativada**: `bash`</example>
-  <note>Se múltiplas skills forem ativadas, listar todas separadas por vírgula</note>
+  <mandate>Em TODA resposta, VOCÊ DEVE informar no início quais skills estão em uso:</mandate>
+  
+  <format-new>🔧 **Skill ativada**: `{nome}` (quando carregar nova skill)</format-new>
+  <format-context>🔧 **Skills em uso**: `{skill1}`, `{skill2}` (quando já no contexto)</format-context>
+  
+  <examples>
+    - Primeira vez: "🔧 **Skill ativada**: `bash`"
+    - Continuação: "🔧 **Skills em uso**: `bash`, `sync`"
+    - Sem skills: Não mostrar nada
+  </examples>
 </skill-announcement>
+
+<skill-deactivation>
+  <trigger>Usuário diz: "desativar skill {nome}" ou "ignorar skill {nome}"</trigger>
+  <action>Parar de aplicar regras dessa skill pelo resto da conversa</action>
+  <action>Remover da lista de "skills em uso"</action>
+  <output>⏹️ **Skill desativada**: `{nome}`</output>
+  <note>Skills desativadas ainda estão no histórico mas suas regras são IGNORADAS</note>
+</skill-deactivation>
 
 <skill-loading critical="true">
   <mandate>Ao trabalhar com arquivos *.sh, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/bash.md</mandate>
