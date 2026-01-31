@@ -22,6 +22,17 @@ applyTo: '**'
     NUNCA crie arquivos markdown/logs para documentar atividades automaticamente.
     Apenas crie/atualize quando explicitamente solicitado.
   </rule>
+  
+  <rule id="english-version" critical="true">
+    A pasta `.english-version/` DEVE SEMPRE refletir os scripts da raiz.
+    TODA criação/alteração de script DEVE ter versão em inglês.
+  </rule>
+  
+  <rule id="cross-platform" critical="true">
+    TODO script DEVE ter versão Linux (.sh) E Windows (.ps1).
+    Se não existir solução nativa para uma plataforma, criar WRAPPER WSL.
+    Consultar `core/project-structure.md` para exceções.
+  </rule>
 </rules>
 
 ## Projeto

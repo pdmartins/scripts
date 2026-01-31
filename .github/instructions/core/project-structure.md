@@ -51,10 +51,28 @@ scripts/
 
 ## Exceções de Sincronização PS1↔SH
 
-| Pasta | Sincroniza? | Motivo |
-|-------|-------------|--------|
-| docker | ❌ | PS1 é wrapper que chama SH via WSL |
-| azure | ❌ | Específico Windows/PowerShell |
+| Pasta | Estratégia | Motivo |
+|-------|------------|--------|
+| docker | `wrapper` | PS1 é wrapper que chama SH via WSL (Docker Engine só existe no Linux) |
+| azure | `platform-specific` | Específico Windows/PowerShell (Azure CLI Windows) |
+
+### Estratégias
+
+| Estratégia | Descrição |
+|------------|-----------|
+| `full-sync` | Manter lógica idêntica em .ps1 e .sh (padrão) |
+| `wrapper` | PS1 chama SH via WSL (ferramenta só existe no Linux) |
+| `platform-specific` | Sem contraparte (ferramenta exclusiva de uma plataforma) |
+
+## Regra: .english-version/
+
+<rule critical="true">
+  A pasta `.english-version/` DEVE SEMPRE refletir TODOS os scripts da raiz.
+  - Todo script criado/modificado → criar versão EN
+  - Todo README criado/modificado → criar versão EN
+  - Comentários e mensagens traduzidos para inglês
+  - Nomes de variáveis/funções permanecem iguais (já são em inglês)
+</rule>
 
 ## Como Atualizar Este Arquivo
 

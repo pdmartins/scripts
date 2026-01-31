@@ -2,8 +2,23 @@
 
 <skill id="sync" context="after modifying *.ps1 or *.sh">
 
-<workflow id="sync-workflow" extends="workflow-engine" trigger="after-script-modification">
-  <require>core/workflow-engine.md</require>
+## Regras Fundamentais
+
+<rules critical="true">
+  <rule id="english-version">
+    A pasta `.english-version/` DEVE SEMPRE refletir os scripts da raiz.
+    TODA alteração em script/README DEVE ser replicada com textos em inglês.
+  </rule>
+  
+  <rule id="cross-platform">
+    TODO script DEVE ter versão Linux (.sh) E Windows (.ps1) quando possível.
+    Se não existir solução nativa para uma plataforma, criar WRAPPER para WSL.
+  </rule>
+</rules>
+
+## Workflow
+
+<workflow id="sync-workflow" trigger="after-script-modification">
   
   <step n="1" goal="Identificar tipo de mudança">
     <action>Analisar alterações feitas no script</action>
@@ -19,146 +34,224 @@
     <check if="mudança em output/mensagens">
       <action>Marcar: sync_output = true</action>
     </check>
+  </step>
+
+  <step n="2" goal="Determinar estratégia de sincronização">
+    <action>Consultar: {workspace}/.github/instructions/core/project-structure.md</action>
+    <action>Verificar tabela "Exceções de Sincronização"</action>
+    <action>Identificar se pasta tem exceção</action>
     
-    <check if="apenas correção de bug interno">
-      <action>Marcar: sync_minor = true</action>
+    <check if="pasta está em exceções com tipo 'wrapper'">
+      <action>Marcar: strategy = "wrapper"</action>
+      <output>ℹ️ Pasta usa estratégia WRAPPER (PS1 chama SH via WSL)</output>
+    </check>
+    
+    <check if="pasta está em exceções com tipo 'platform-specific'">
+      <action>Marcar: strategy = "platform-specific"</action>
+      <output>ℹ️ Pasta é específica de plataforma - sem contraparte</output>
+    </check>
+    
+    <check if="pasta NÃO está em exceções">
+      <action>Marcar: strategy = "full-sync"</action>
     </check>
   </step>
 
-  <step n="2" goal="Verificar exceções de sincronização">
-    <action>Identificar pasta do script</action>
-    
-    <check if="pasta == 'docker'">
-      <output>ℹ️ Pasta docker: PS1 é wrapper do SH - não sincronizar lógica</output>
-      <action>Marcar: exception_ps1_sh = true</action>
-    </check>
-    
-    <check if="pasta == 'azure'">
-      <output>ℹ️ Pasta azure: Scripts específicos Windows - não sincronizar para SH</output>
-      <action>Marcar: exception_ps1_sh = true</action>
-    </check>
-  </step>
-
-  <step n="3" goal="Sincronizar contraparte PS1/SH">
-    <check if="exception_ps1_sh == false">
-      <check if="script é *.sh E existe *.ps1 correspondente">
-        <action>Aplicar mesma lógica ao arquivo .ps1</action>
-        <action>Adaptar sintaxe para PowerShell</action>
-        <output>🔄 Sincronizado: {arquivo}.ps1</output>
+  <step n="3" goal="Verificar/criar contraparte cross-platform">
+    <check if="strategy == 'full-sync'">
+      <check if="script é *.sh E NÃO existe *.ps1">
+        <action>Criar arquivo .ps1 com mesma lógica adaptada para PowerShell</action>
+        <output>✨ Criado: {arquivo}.ps1 (versão Windows)</output>
       </check>
       
-      <check if="script é *.ps1 E existe *.sh correspondente">
-        <action>Aplicar mesma lógica ao arquivo .sh</action>
-        <action>Adaptar sintaxe para Bash</action>
-        <output>🔄 Sincronizado: {arquivo}.sh</output>
+      <check if="script é *.ps1 E NÃO existe *.sh">
+        <action>Criar arquivo .sh com mesma lógica adaptada para Bash</action>
+        <output>✨ Criado: {arquivo}.sh (versão Linux)</output>
+      </check>
+      
+      <check if="ambos existem">
+        <action>Sincronizar lógica entre os dois</action>
+        <output>🔄 Sincronizado: {arquivo}.ps1 ↔ {arquivo}.sh</output>
       </check>
     </check>
     
-    <check if="exception_ps1_sh == true">
-      <output>⏭️ Sincronização PS1↔SH pulada (exceção de pasta)</output>
+    <check if="strategy == 'wrapper'">
+      <check if="script é *.sh E NÃO existe *.ps1">
+        <action>Criar WRAPPER .ps1 que executa o .sh via WSL</action>
+        <action>Usar template de wrapper WSL abaixo</action>
+        <output>✨ Criado: {arquivo}.ps1 (wrapper WSL)</output>
+      </check>
+      
+      <check if="script é *.sh E existe *.ps1 wrapper">
+        <action>Verificar se wrapper ainda é compatível (mesmos parâmetros)</action>
+        <check if="parâmetros mudaram">
+          <action>Atualizar wrapper para novos parâmetros</action>
+          <output>🔄 Wrapper atualizado: {arquivo}.ps1</output>
+        </check>
+      </check>
+    </check>
+    
+    <check if="strategy == 'platform-specific'">
+      <output>⏭️ Sem contraparte (específico de plataforma)</output>
     </check>
   </step>
 
   <step n="4" goal="Atualizar README">
     <check if="sync_params == true OU sync_logic == true">
-      <action>Atualizar README.md da pasta do script</action>
-      <action>Atualizar tabela de parâmetros se necessário</action>
-      <action>Atualizar exemplos se comportamento mudou</action>
-      <output>📝 README atualizado: {pasta}/README.md</output>
-    </check>
-    
-    <check if="sync_minor == true E sync_params == false E sync_logic == false">
-      <output>⏭️ README não atualizado (mudança menor sem impacto funcional)</output>
+      <action>Atualizar README.md da pasta</action>
+      <action>Documentar ambas versões (PS1 e SH)</action>
+      <action>Se wrapper, documentar requisito de WSL</action>
+      <output>📝 README atualizado</output>
     </check>
   </step>
 
-  <step n="5" goal="Replicar para versão em inglês">
-    <action>SEMPRE replicar alterações para .english-version/</action>
+  <step n="5" goal="Replicar para .english-version/ (OBRIGATÓRIO)">
+    <action critical="true">SEMPRE replicar para .english-version/</action>
     
-    <check if="script modificado">
+    <check if="script criado ou modificado">
       <action>Criar/atualizar .english-version/{pasta}/{script}</action>
-      <action>Traduzir comentários e mensagens para inglês</action>
-      <output>🌐 Versão EN criada: .english-version/{pasta}/{script}</output>
+      <action>Traduzir TODOS os comentários para inglês</action>
+      <action>Traduzir TODAS as mensagens de output para inglês</action>
+      <action>Manter nomes de variáveis/funções iguais (já são em inglês)</action>
+    </check>
+    
+    <check if="contraparte foi criada/sincronizada">
+      <action>Criar/atualizar versão EN da contraparte também</action>
     </check>
     
     <check if="README modificado">
       <action>Criar/atualizar .english-version/{pasta}/README.md</action>
-      <action>Traduzir conteúdo para inglês</action>
-      <output>🌐 README EN criado: .english-version/{pasta}/README.md</output>
+      <action>Traduzir todo conteúdo para inglês</action>
     </check>
+    
+    <output>🌐 Versão EN sincronizada: .english-version/{pasta}/</output>
   </step>
 
   <step n="6" goal="Resumo de sincronização">
     <output>
       📋 **Resumo de Sincronização**
       
-      | Ação | Status |
+      | Item | Status |
       |------|--------|
-      | Contraparte PS1/SH | {status} |
-      | README | {status} |
-      | Versão EN | {status} |
+      | Script principal | ✅ {ação} |
+      | Contraparte ({ext}) | {status} |
+      | README.md | {status} |
+      | .english-version/ (PT→EN) | ✅ Obrigatório |
     </output>
   </step>
 </workflow>
 
+## Template: Wrapper WSL (PS1 → SH)
+
+Usar quando a ferramenta NÃO tem suporte nativo Windows (ex: Docker Engine).
+
+```powershell
+# ============================================================================
+# Script: {nome}.ps1
+# Description: Windows wrapper for {nome}.sh (runs via WSL)
+# Requires: WSL with a Linux distribution installed
+# ============================================================================
+
+param(
+    # Copiar mesmos parâmetros do script .sh
+)
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+function Test-WslAvailable {
+    try {
+        $null = wsl --status 2>&1
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Get-WslDistro {
+    $distros = wsl --list --quiet 2>&1 | Where-Object { $_ -and $_ -notmatch "^Windows" }
+    if ($distros) {
+        return ($distros | Select-Object -First 1).Trim()
+    }
+    return $null
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+Write-Host "🚀 Running {nome} via WSL..." -ForegroundColor White
+
+# Check WSL
+if (-not (Test-WslAvailable)) {
+    Write-Host "❌ WSL is not available. Please install WSL first." -ForegroundColor Red
+    Write-Host "   Run: wsl --install" -ForegroundColor Yellow
+    exit 1
+}
+
+$distro = Get-WslDistro
+if (-not $distro) {
+    Write-Host "❌ No WSL distribution found. Please install one." -ForegroundColor Red
+    Write-Host "   Run: wsl --install -d Ubuntu" -ForegroundColor Yellow
+    exit 1
+}
+
+# Get script path in WSL format
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$WslScriptDir = $ScriptDir -replace '\\', '/' -replace '^([A-Za-z]):', '/mnt/$1'.ToLower()
+$ShellScript = "{nome}.sh"
+
+# Build arguments string
+$WslArgs = @()
+# Adicionar parâmetros conforme necessário
+# if ($Param1) { $WslArgs += "--param1 `"$Param1`"" }
+
+# Execute via WSL
+$WslCommand = "cd '$WslScriptDir' && chmod +x '$ShellScript' && ./'$ShellScript' $($WslArgs -join ' ')"
+
+try {
+    wsl -d $distro -- bash -c $WslCommand
+    $exitCode = $LASTEXITCODE
+    
+    if ($exitCode -eq 0) {
+        Write-Host "✅ Done!" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Script exited with code: $exitCode" -ForegroundColor Red
+        exit $exitCode
+    }
+}
+catch {
+    Write-Host "❌ Error executing script: $_" -ForegroundColor Red
+    exit 1
+}
+```
+
+## Estratégias de Sincronização
+
+| Estratégia | Descrição | Quando Usar |
+|------------|-----------|-------------|
+| `full-sync` | Manter lógica idêntica em ambos | Ferramentas com suporte nativo em ambas plataformas |
+| `wrapper` | PS1 chama SH via WSL | Ferramenta só existe no Linux (ex: Docker Engine) |
+| `platform-specific` | Sem contraparte | Ferramenta exclusiva de uma plataforma (ex: Azure CLI Windows) |
+
 ## Matriz de Sincronização
 
-<sync-matrix>
-  | Tipo de Mudança | PS1↔SH | README | .english-version |
-  |-----------------|--------|--------|------------------|
-  | Novo script | ✓ Se ambos existem | ✓ Criar | ✓ Obrigatório |
-  | Alterar parâmetros | Verificar exceções | ✓ Obrigatório | ✓ Obrigatório |
-  | Alterar lógica | Verificar exceções | ✓ Se funcional | ✓ Obrigatório |
-  | Alterar output | Verificar exceções | ✗ Não necessário | ✓ Obrigatório |
-  | Fix de bug | Verificar exceções | ✗ Se não muda comportamento | ✓ Obrigatório |
-</sync-matrix>
-
-## Exceções por Pasta
-
-<exceptions>
-  <folder name="docker">
-    <sync-ps1-sh>false</sync-ps1-sh>
-    <reason>PS1 é wrapper que chama o SH via WSL - lógica real está no SH</reason>
-    <behavior>
-      - Modificações no .sh NÃO atualizam o .ps1 automaticamente
-      - PS1 apenas passa parâmetros para o SH
-    </behavior>
-  </folder>
-  
-  <folder name="azure">
-    <sync-ps1-sh>false</sync-ps1-sh>
-    <reason>Scripts específicos para Windows/PowerShell - não têm equivalente Bash</reason>
-    <behavior>
-      - Não existe contraparte .sh para criar
-      - Apenas versão EN é replicada
-    </behavior>
-  </folder>
-</exceptions>
-
-## Fluxo de Decisão
-
-```
-Script alterado
-│
-├─► Está em pasta com exceção?
-│   ├─► SIM → Pular sync PS1↔SH
-│   └─► NÃO → Verificar contraparte
-│             ├─► Existe → Sincronizar
-│             └─► Não existe → Apenas EN + README
-│
-├─► Mudou parâmetros ou comportamento?
-│   ├─► SIM → Atualizar README (PT e EN)
-│   └─► NÃO → Pular README
-│
-└─► SEMPRE → Replicar para .english-version/
-```
+| Ação | PS1↔SH | README | .english-version |
+|------|--------|--------|------------------|
+| Novo script | ✓ Criar contraparte | ✓ Criar | ✅ **OBRIGATÓRIO** |
+| Alterar parâmetros | ✓ Sincronizar | ✓ Atualizar | ✅ **OBRIGATÓRIO** |
+| Alterar lógica | ✓ Sincronizar | ✓ Se funcional | ✅ **OBRIGATÓRIO** |
+| Alterar mensagens | ✓ Sincronizar | ✗ Não necessário | ✅ **OBRIGATÓRIO** |
 
 ## Checklist Pós-Alteração
 
 <checklist>
-  <item>[ ] Verificar se pasta tem exceção de sync</item>
-  <item>[ ] Sincronizar contraparte PS1/SH (se aplicável)</item>
-  <item>[ ] Atualizar README se mudança funcional</item>
-  <item>[ ] Criar/atualizar versão em .english-version/</item>
-  <item>[ ] Traduzir mensagens e comentários para EN</item>
+  - [ ] Contraparte existe? Se não, criar (full-sync ou wrapper)
+  - [ ] Contraparte sincronizada com mudanças
+  - [ ] README atualizado (se mudança funcional)
+  - [ ] **OBRIGATÓRIO**: .english-version/ atualizado para TODOS os arquivos modificados
+  - [ ] Mensagens/comentários traduzidos para EN
 </checklist>
+
+</skill>
