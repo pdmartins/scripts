@@ -49,11 +49,19 @@ Scripts utilitários de automação — idempotentes, bilíngues (PT na raiz, EN
 
 ## Skills (Instruções sob Demanda)
 
+<skill-announcement critical="true">
+  <mandate>Ao carregar uma skill, VOCÊ DEVE anunciar no início da resposta:</mandate>
+  <format>🔧 **Skill ativada**: `{nome-da-skill}`</format>
+  <example>🔧 **Skill ativada**: `bash`</example>
+  <note>Se múltiplas skills forem ativadas, listar todas separadas por vírgula</note>
+</skill-announcement>
+
 <skill-loading critical="true">
   <mandate>Ao trabalhar com arquivos *.sh, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/bash.md</mandate>
   <mandate>Ao trabalhar com arquivos *.ps1, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/powershell.md</mandate>
   <mandate>Ao trabalhar com README.md, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/readme.md</mandate>
   <mandate>Após modificar scripts, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/sync.md</mandate>
+  <mandate>Ao tomar decisão arquitetural importante, VOCÊ DEVE ler e aplicar: {workspace}/.github/instructions/skills/memory.md</mandate>
 </skill-loading>
 
 <skill-discovery critical="true">
@@ -194,7 +202,7 @@ Scripts utilitários de automação — idempotentes, bilíngues (PT na raiz, EN
   - [ ] Feedback de progresso
   - [ ] Tratamento de erros
   - [ ] Versão PT e EN
-  - [ ] README atualizado
+  - [ ] README da pasta existe e atualizado
   - [ ] Sem dados sensíveis
   - [ ] Sem paths absolutos
 </checklist>

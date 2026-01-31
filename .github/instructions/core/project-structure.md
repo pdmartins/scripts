@@ -20,11 +20,13 @@ scripts/
 │   │   │   ├── powershell.md
 │   │   │   ├── readme.md
 │   │   │   ├── sync.md
+│   │   │   ├── memory.md
 │   │   │   ├── update-structure.md
 │   │   │   └── create-skill.md
 │   │   └── default.instructions.md
-│   └── .memory/               # Lições aprendidas
-│       └── lessons-learned.md
+│   └── .memory/               # Memória persistente do Copilot
+│       ├── lessons-learned.md # Lições e decisões importantes
+│       └── project-context.md # Contexto atual do projeto
 ├── .english-version/          # Versão inglês dos scripts
 ├── azure/                     # Scripts Azure (Windows/PowerShell)
 ├── docker/                    # Scripts Docker

@@ -27,6 +27,7 @@
 | sync | `skills/sync.md` | Após modificar qualquer script |
 | update-structure | `skills/update-structure.md` | Após criar nova pasta ou novo tipo de script |
 | create-skill | `skills/create-skill.md` | Quando precisar criar skill para novo tipo de script |
+| memory | `skills/memory.md` | Registrar lições, consultar contexto do projeto |
 
 ## Extensões → Skills
 

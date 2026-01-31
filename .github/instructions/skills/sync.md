@@ -14,6 +14,15 @@
     TODO script DEVE ter versão Linux (.sh) E Windows (.ps1) quando possível.
     Se não existir solução nativa para uma plataforma, criar WRAPPER para WSL.
   </rule>
+  
+  <rule id="readme-per-folder" critical="true">
+    TODA pasta de scripts DEVE ter um README.md explicando:
+    - Propósito da pasta
+    - Lista de scripts com descrição
+    - Requisitos/dependências
+    - Exemplos de uso para cada script
+    Usar skill readme.md para estrutura obrigatória.
+  </rule>
 </rules>
 
 ## Workflow
@@ -95,8 +104,15 @@
     </check>
   </step>
 
-  <step n="4" goal="Atualizar README">
-    <check if="sync_params == true OU sync_logic == true">
+  <step n="4" goal="Garantir README da pasta">
+    <check if="README.md NÃO existe na pasta">
+      <action critical="true">Criar README.md usando skill readme.md</action>
+      <action>Ler: {workspace}/.github/instructions/skills/readme.md</action>
+      <action>Aplicar template obrigatório</action>
+      <output>📄 README.md criado</output>
+    </check>
+    
+    <check if="README.md existe E (sync_params == true OU sync_logic == true)">
       <action>Atualizar README.md da pasta</action>
       <action>Documentar ambas versões (PS1 e SH)</action>
       <action>Se wrapper, documentar requisito de WSL</action>
