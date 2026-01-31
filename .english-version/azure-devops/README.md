@@ -28,7 +28,7 @@ cd ~/projects/my-org/
 ### 2. Configure credentials
 
 ```bash
-cp devops-config.example.json devops-config.json
+cp config.example.json config.json
 # Edit with your credentials
 ```
 
@@ -44,7 +44,7 @@ cp devops-config.example.json devops-config.json
 
 ## ⚙️ Configuration
 
-### Configuration file (`devops-config.json`)
+### Configuration file (`config.json`)
 
 ```json
 {

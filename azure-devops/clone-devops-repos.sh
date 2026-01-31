@@ -25,7 +25,7 @@ print_update()  { echo -e "${CYAN}🔄 $1${NC}"; }
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/devops-config.json"
+CONFIG_FILE="${SCRIPT_DIR}/config.json"
 
 # Default values
 ORGANIZATION_URL=""
@@ -59,7 +59,7 @@ show_usage() {
     echo "  -c, --config FILE        Arquivo de configuração JSON"
     echo "  -h, --help               Mostra esta ajuda"
     echo ""
-    echo "Exemplo de config (devops-config.json):"
+    echo "Exemplo de config (config.json):"
     echo '{'
     echo '  "organization_url": "https://dev.azure.com/sua-org",'
     echo '  "project": "nome-do-projeto",'

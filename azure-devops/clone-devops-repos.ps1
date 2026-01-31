@@ -53,7 +53,7 @@ function Write-Update {
 
 # Script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$DefaultConfigFile = Join-Path $ScriptDir "devops-config.json"
+$DefaultConfigFile = Join-Path $ScriptDir "config.json"
 
 # Tracking arrays
 $script:ReposCloned = @()
@@ -76,7 +76,7 @@ function Show-Usage {
     Write-Host "  -ClonePath PATH          Pasta de destino (padrão: .\repos)"
     Write-Host "  -ConfigFile FILE         Arquivo de configuração JSON"
     Write-Host ""
-    Write-Host "Exemplo de config (devops-config.json):"
+    Write-Host "Exemplo de config (config.json):"
     Write-Host '{'
     Write-Host '  "organization_url": "https://dev.azure.com/sua-org",'
     Write-Host '  "project": "nome-do-projeto",'
