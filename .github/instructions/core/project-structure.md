@@ -28,7 +28,8 @@ scripts/
 │       ├── lessons-learned.md # Lições e decisões importantes
 │       └── project-context.md # Contexto atual do projeto
 ├── .english-version/          # Versão inglês dos scripts
-├── azure/                     # Scripts Azure (Windows/PowerShell)
+├── azure/                     # Scripts Azure Portal (Windows/PowerShell)
+├── azure-devops/              # Scripts Azure DevOps
 ├── docker/                    # Scripts Docker
 ├── oh-my-posh/               # Scripts Oh My Posh
 └── ssh/                       # Scripts SSH
@@ -38,7 +39,8 @@ scripts/
 
 | Pasta | Descrição | Plataforma | Scripts |
 |-------|-----------|------------|---------|
-| azure | Automação Azure | Windows | .ps1, .bat |
+| azure | Automação Azure Portal | Windows | .ps1, .bat |
+| azure-devops | Automação Azure DevOps | Cross-platform | .ps1, .sh |
 | docker | Instalação/gerenciamento Docker | Cross-platform | .ps1, .sh |
 | oh-my-posh | Temas e instalação OMP | Cross-platform | .ps1, .sh |
 | ssh | Geração de chaves SSH | Cross-platform | .ps1, .sh |
