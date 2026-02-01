@@ -42,6 +42,7 @@ scripts/
 | azure | Automação Azure Portal | Windows | .ps1, .bat |
 | azure-devops | Automação Azure DevOps | Cross-platform | .ps1, .sh |
 | docker | Instalação/gerenciamento Docker | Cross-platform | .ps1, .sh |
+| git | Exportação e clonagem de repos Git | Cross-platform | .ps1, .sh |
 | oh-my-posh | Temas e instalação OMP | Cross-platform | .ps1, .sh |
 | ssh | Geração de chaves SSH | Cross-platform | .ps1, .sh |
 
