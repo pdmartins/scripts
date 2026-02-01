@@ -21,6 +21,8 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️ $1${NC}"; }
 print_error()   { echo -e "${RED}❌ $1${NC}"; }
 print_step()    { echo -e "${WHITE}🚀 $1${NC}"; }
+print_install() { echo -e "${YELLOW}📦 $1${NC}"; }
+print_update()  { echo -e "${CYAN}🔄 $1${NC}"; }
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +31,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEARCH_PATH=""
 OUTPUT_FILE=""
 
+# Tracking arrays
+REPOS_FOUND=()
+REPOS_NO_REMOTE=()
+
 # Error handling
 trap 'print_error "Erro na linha $LINENO"; exit 1' ERR
 
@@ -36,22 +42,17 @@ trap 'print_error "Erro na linha $LINENO"; exit 1' ERR
 # Functions
 # ============================================================================
 
-show_help() {
-    cat << EOF
-Uso: $(basename "$0") [OPÇÕES]
-
-Procura repositórios Git em uma pasta e gera script para clonar a estrutura.
-
-OPÇÕES:
-    -p, --path PATH      Pasta raiz para buscar repos (padrão: diretório atual)
-    -o, --output FILE    Arquivo de saída para o script (padrão: clone-repos.sh)
-    -h, --help           Mostra esta ajuda
-
-EXEMPLOS:
-    $(basename "$0") -p ~/projetos
-    $(basename "$0") -p /home/user/repos -o meus-repos.sh
-
-EOF
+show_usage() {
+    echo "Uso: $0 [opções]"
+    echo ""
+    echo "Opções:"
+    echo "  -p, --path PATH      Pasta raiz para buscar repos (padrão: diretório atual)"
+    echo "  -o, --output FILE    Arquivo de saída para o script (padrão: clone-repos.sh)"
+    echo "  -h, --help           Mostra esta ajuda"
+    echo ""
+    echo "Exemplos:"
+    echo "  $0 -p ~/projetos"
+    echo "  $0 -p /home/user/repos -o meus-repos.sh"
 }
 
 parse_arguments() {
@@ -66,16 +67,32 @@ parse_arguments() {
                 shift 2
                 ;;
             -h|--help)
-                show_help
+                show_usage
                 exit 0
                 ;;
             *)
                 print_error "Opção desconhecida: $1"
-                show_help
+                show_usage
                 exit 1
                 ;;
         esac
     done
+}
+
+check_prerequisites() {
+    print_info "Verificando pré-requisitos..."
+    
+    if ! command -v git &>/dev/null; then
+        print_error "Git não encontrado. Instale o Git primeiro."
+        exit 1
+    fi
+    
+    if ! command -v find &>/dev/null; then
+        print_error "find não encontrado."
+        exit 1
+    fi
+    
+    print_success "Pré-requisitos OK"
 }
 
 get_search_path() {
@@ -91,6 +108,8 @@ get_search_path() {
         print_error "Pasta não encontrada: $SEARCH_PATH"
         exit 1
     fi
+    
+    print_info "Pasta de busca: $SEARCH_PATH"
 }
 
 get_output_file() {
@@ -103,17 +122,8 @@ get_output_file() {
     if [[ "$OUTPUT_FILE" != *.sh ]]; then
         OUTPUT_FILE="${OUTPUT_FILE}.sh"
     fi
-}
-
-find_git_repos() {
-    local search_path="$1"
     
-    print_info "Buscando repositórios Git em: $search_path"
-    
-    # Encontrar todas as pastas .git e retornar o diretório pai
-    find "$search_path" -type d -name ".git" 2>/dev/null | while read -r git_dir; do
-        dirname "$git_dir"
-    done
+    print_info "Arquivo de saída: $OUTPUT_FILE"
 }
 
 get_repo_info() {
@@ -121,28 +131,80 @@ get_repo_info() {
     local remote_url=""
     local current_branch=""
     
+    # Salvar diretório atual
+    local original_dir="$PWD"
+    
     # Entrar no diretório do repo
-    pushd "$repo_path" > /dev/null
+    cd "$repo_path"
     
     # Obter URL do remote origin
     remote_url=$(git remote get-url origin 2>/dev/null || echo "")
     
     # Obter branch atual
-    current_branch=$(git branch --show-current 2>/dev/null || echo "main")
+    current_branch=$(git branch --show-current 2>/dev/null || echo "")
     
-    popd > /dev/null
+    # Se não tem branch atual, tentar pegar a HEAD
+    if [[ -z "$current_branch" ]]; then
+        current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    fi
+    
+    # Voltar ao diretório original
+    cd "$original_dir"
     
     echo "$remote_url|$current_branch"
 }
 
-generate_clone_script() {
+find_all_repos() {
     local search_path="$1"
-    local output_file="$2"
-    local repo_count=0
     
+    print_step "Buscando repositórios Git recursivamente..."
+    echo ""
+    
+    # Usar mapfile para capturar todos os resultados corretamente
+    local git_dirs=()
+    while IFS= read -r -d '' git_dir; do
+        git_dirs+=("$(dirname "$git_dir")")
+    done < <(find "$search_path" -type d -name ".git" -print0 2>/dev/null)
+    
+    local total=${#git_dirs[@]}
+    print_info "Encontrados $total repositórios Git"
+    echo ""
+    
+    # Processar cada repositório
+    local current=0
+    for repo_path in "${git_dirs[@]}"; do
+        ((current++))
+        
+        # Caminho relativo à pasta de busca
+        local relative_path="${repo_path#$search_path/}"
+        
+        # Obter informações do repo
+        local repo_info
+        repo_info=$(get_repo_info "$repo_path")
+        
+        local remote_url="${repo_info%%|*}"
+        local branch="${repo_info##*|}"
+        
+        echo -e "${CYAN}[$current/$total]${NC} $relative_path"
+        
+        if [[ -z "$remote_url" ]]; then
+            print_warning "  └── Sem remote origin (ignorado)"
+            REPOS_NO_REMOTE+=("$relative_path")
+        else
+            echo "  ├── Remote: $remote_url"
+            echo "  └── Branch: $branch"
+            REPOS_FOUND+=("$relative_path|$remote_url|$branch")
+        fi
+    done
+}
+
+generate_clone_script() {
+    local output_file="$1"
+    
+    echo ""
     print_step "Gerando script de clonagem..."
     
-    # Cabeçalho do script
+    # Cabeçalho do script gerado
     cat > "$output_file" << 'HEADER'
 #!/bin/bash
 set -euo pipefail
@@ -166,18 +228,22 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️ $1${NC}"; }
 print_error()   { echo -e "${RED}❌ $1${NC}"; }
 print_step()    { echo -e "${WHITE}🚀 $1${NC}"; }
+print_install() { echo -e "${YELLOW}📦 $1${NC}"; }
+print_update()  { echo -e "${CYAN}🔄 $1${NC}"; }
+
+# Tracking
+REPOS_CLONED=()
+REPOS_SKIPPED=()
+REPOS_FAILED=()
 
 # ============================================================================
 # Configuration
 # ============================================================================
 
-# Pasta base onde os repos serão clonados (modifique conforme necessário)
 BASE_DIR="${1:-$(pwd)}"
 
-print_step "Clonando repositórios para: $BASE_DIR"
-
 # ============================================================================
-# Clone Repositories
+# Functions
 # ============================================================================
 
 clone_repo() {
@@ -189,81 +255,116 @@ clone_repo() {
     
     if [[ -d "$target_dir/.git" ]]; then
         print_warning "Repo já existe: $relative_path"
+        REPOS_SKIPPED+=("$relative_path")
         return 0
     fi
     
-    print_info "Clonando: $relative_path"
-    print_info "  URL: $remote_url"
-    print_info "  Branch: $branch"
+    print_install "Clonando: $relative_path"
+    echo "  ├── URL: $remote_url"
+    echo "  └── Branch: $branch"
     
+    # Criar pasta pai se não existir
     mkdir -p "$(dirname "$target_dir")"
     
+    # Tentar clonar com branch específica
     if git clone --branch "$branch" "$remote_url" "$target_dir" 2>/dev/null; then
         print_success "Clonado: $relative_path"
+        REPOS_CLONED+=("$relative_path")
     else
-        # Tentar sem especificar branch (caso a branch não exista no remote)
+        # Tentar sem branch específica
         if git clone "$remote_url" "$target_dir" 2>/dev/null; then
             print_warning "Clonado (branch padrão): $relative_path"
+            REPOS_CLONED+=("$relative_path")
         else
             print_error "Falha ao clonar: $relative_path"
+            REPOS_FAILED+=("$relative_path")
             return 1
         fi
     fi
 }
 
+show_summary() {
+    echo ""
+    echo "============================================================================"
+    echo " Resumo"
+    echo "============================================================================"
+    
+    if [[ ${#REPOS_CLONED[@]} -gt 0 ]]; then
+        print_success "Clonados: ${#REPOS_CLONED[@]}"
+    fi
+    
+    if [[ ${#REPOS_SKIPPED[@]} -gt 0 ]]; then
+        print_warning "Já existentes: ${#REPOS_SKIPPED[@]}"
+    fi
+    
+    if [[ ${#REPOS_FAILED[@]} -gt 0 ]]; then
+        print_error "Falhas: ${#REPOS_FAILED[@]}"
+        for repo in "${REPOS_FAILED[@]}"; do
+            echo "  - $repo"
+        done
+    fi
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+main() {
+    print_step "Clonando repositórios para: $BASE_DIR"
+    echo ""
+
 HEADER
 
     # Adicionar metadados
-    echo "" >> "$output_file"
     echo "# Gerado em: $(date '+%Y-%m-%d %H:%M:%S')" >> "$output_file"
-    echo "# Pasta original: $search_path" >> "$output_file"
+    echo "# Pasta original: $SEARCH_PATH" >> "$output_file"
+    echo "# Total de repositórios: ${#REPOS_FOUND[@]}" >> "$output_file"
     echo "" >> "$output_file"
-    echo "# ============================================================================" >> "$output_file"
-    echo "# Repositories" >> "$output_file"
-    echo "# ============================================================================" >> "$output_file"
-    echo "" >> "$output_file"
-
-    # Processar cada repositório
-    while IFS= read -r repo_path; do
-        [[ -z "$repo_path" ]] && continue
+    
+    # Adicionar chamadas de clone para cada repo
+    for repo_data in "${REPOS_FOUND[@]}"; do
+        local relative_path="${repo_data%%|*}"
+        local temp="${repo_data#*|}"
+        local remote_url="${temp%%|*}"
+        local branch="${temp##*|}"
         
-        local repo_info
-        repo_info=$(get_repo_info "$repo_path")
-        
-        local remote_url="${repo_info%%|*}"
-        local branch="${repo_info##*|}"
-        
-        # Caminho relativo à pasta de busca
-        local relative_path="${repo_path#$search_path/}"
-        
-        if [[ -z "$remote_url" ]]; then
-            print_warning "Repo sem remote origin: $relative_path"
-            echo "# AVISO: Repo local sem remote - $relative_path" >> "$output_file"
-            continue
-        fi
-        
-        echo "clone_repo \"$relative_path\" \"$remote_url\" \"$branch\"" >> "$output_file"
-        ((repo_count++))
-        
-        print_info "Encontrado: $relative_path"
-        echo "           Branch: $branch"
-        
-    done < <(find_git_repos "$search_path")
-
+        echo "    clone_repo \"$relative_path\" \"$remote_url\" \"$branch\"" >> "$output_file"
+    done
+    
     # Footer do script
     cat >> "$output_file" << 'FOOTER'
 
-# ============================================================================
-# Summary
-# ============================================================================
+    show_summary
+}
 
-print_success "Processo de clonagem concluído!"
+main
 FOOTER
 
     # Tornar executável
     chmod +x "$output_file"
+}
+
+show_summary() {
+    echo ""
+    echo "============================================================================"
+    echo " Resumo"
+    echo "============================================================================"
     
-    echo "$repo_count"
+    print_success "Repositórios encontrados: ${#REPOS_FOUND[@]}"
+    
+    if [[ ${#REPOS_NO_REMOTE[@]} -gt 0 ]]; then
+        print_warning "Sem remote (ignorados): ${#REPOS_NO_REMOTE[@]}"
+        for repo in "${REPOS_NO_REMOTE[@]}"; do
+            echo "  - $repo"
+        done
+    fi
+    
+    echo ""
+    print_success "Script gerado: $OUTPUT_FILE"
+    echo ""
+    print_info "Para usar em outro computador:"
+    echo "    1. Copie o arquivo '$OUTPUT_FILE' para o destino"
+    echo "    2. Execute: ./$OUTPUT_FILE [pasta_destino]"
 }
 
 # ============================================================================
@@ -275,21 +376,20 @@ main() {
     echo ""
     
     parse_arguments "$@"
+    check_prerequisites
     get_search_path
     get_output_file
-    
     echo ""
     
-    local count
-    count=$(generate_clone_script "$SEARCH_PATH" "$OUTPUT_FILE")
+    find_all_repos "$SEARCH_PATH"
     
-    echo ""
-    print_success "Script gerado: $OUTPUT_FILE"
-    print_success "Total de repositórios: $count"
-    echo ""
-    print_info "Para usar em outro computador:"
-    echo "    1. Copie o arquivo '$OUTPUT_FILE' para o destino"
-    echo "    2. Execute: ./$OUTPUT_FILE [pasta_destino]"
+    if [[ ${#REPOS_FOUND[@]} -eq 0 ]]; then
+        print_warning "Nenhum repositório com remote origin encontrado."
+        exit 0
+    fi
+    
+    generate_clone_script "$OUTPUT_FILE"
+    show_summary
 }
 
 main "$@"

@@ -6,7 +6,8 @@
 
 param(
     [string]$Path,
-    [string]$Output
+    [string]$Output,
+    [switch]$Help
 )
 
 # ============================================================================
@@ -38,28 +39,49 @@ function Write-Err {
     Write-Host "❌ $Message" -ForegroundColor Red
 }
 
+function Write-Install {
+    param([string]$Message)
+    Write-Host "📦 $Message" -ForegroundColor Yellow
+}
+
+function Write-Update {
+    param([string]$Message)
+    Write-Host "🔄 $Message" -ForegroundColor Cyan
+}
+
 # Script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Tracking arrays
+$script:ReposFound = @()
+$script:ReposNoRemote = @()
 
 # ============================================================================
 # Functions
 # ============================================================================
 
-function Show-Help {
-    @"
-Uso: .\export-git-repos.ps1 [OPÇÕES]
+function Show-Usage {
+    Write-Host "Uso: .\export-git-repos.ps1 [opções]"
+    Write-Host ""
+    Write-Host "Opções:"
+    Write-Host "  -Path PATH       Pasta raiz para buscar repos (padrão: diretório atual)"
+    Write-Host "  -Output FILE     Arquivo de saída para o script (padrão: clone-repos.ps1)"
+    Write-Host "  -Help            Mostra esta ajuda"
+    Write-Host ""
+    Write-Host "Exemplos:"
+    Write-Host "  .\export-git-repos.ps1 -Path C:\Projetos"
+    Write-Host "  .\export-git-repos.ps1 -Path D:\Repos -Output meus-repos.ps1"
+}
 
-Procura repositórios Git em uma pasta e gera script para clonar a estrutura.
-
-OPÇÕES:
-    -Path PATH       Pasta raiz para buscar repos (padrão: diretório atual)
-    -Output FILE     Arquivo de saída para o script (padrão: clone-repos.ps1)
-
-EXEMPLOS:
-    .\export-git-repos.ps1 -Path C:\Projetos
-    .\export-git-repos.ps1 -Path D:\Repos -Output meus-repos.ps1
-
-"@
+function Test-Prerequisites {
+    Write-Info "Verificando pré-requisitos..."
+    
+    if (-not (Get-Command "git" -ErrorAction SilentlyContinue)) {
+        Write-Err "Git não encontrado. Instale o Git primeiro."
+        exit 1
+    }
+    
+    Write-Success "Pré-requisitos OK"
 }
 
 function Get-SearchPath {
@@ -73,14 +95,21 @@ function Get-SearchPath {
     }
     
     # Resolver path absoluto
-    $resolvedPath = Resolve-Path -Path $InputPath -ErrorAction SilentlyContinue
-    
-    if (-not $resolvedPath -or -not (Test-Path $resolvedPath)) {
+    try {
+        $resolvedPath = (Resolve-Path -Path $InputPath -ErrorAction Stop).Path
+    }
+    catch {
         Write-Err "Pasta não encontrada: $InputPath"
         exit 1
     }
     
-    return $resolvedPath.Path
+    if (-not (Test-Path $resolvedPath -PathType Container)) {
+        Write-Err "Pasta não encontrada: $InputPath"
+        exit 1
+    }
+    
+    Write-Info "Pasta de busca: $resolvedPath"
+    return $resolvedPath
 }
 
 function Get-OutputFile {
@@ -98,35 +127,25 @@ function Get-OutputFile {
         $InputFile = "$InputFile.ps1"
     }
     
+    Write-Info "Arquivo de saída: $InputFile"
     return $InputFile
-}
-
-function Find-GitRepos {
-    param([string]$SearchPath)
-    
-    Write-Info "Buscando repositórios Git em: $SearchPath"
-    
-    $gitFolders = Get-ChildItem -Path $SearchPath -Directory -Recurse -Filter ".git" -ErrorAction SilentlyContinue -Force
-    
-    $repos = @()
-    foreach ($gitFolder in $gitFolders) {
-        $repos += $gitFolder.Parent.FullName
-    }
-    
-    return $repos
 }
 
 function Get-RepoInfo {
     param([string]$RepoPath)
     
-    Push-Location $RepoPath
+    $originalLocation = Get-Location
+    Set-Location $RepoPath
     
     try {
         $remoteUrl = git remote get-url origin 2>$null
         $currentBranch = git branch --show-current 2>$null
         
         if ([string]::IsNullOrWhiteSpace($currentBranch)) {
-            $currentBranch = "main"
+            $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
+            if ([string]::IsNullOrWhiteSpace($currentBranch)) {
+                $currentBranch = "main"
+            }
         }
     }
     catch {
@@ -134,7 +153,7 @@ function Get-RepoInfo {
         $currentBranch = "main"
     }
     
-    Pop-Location
+    Set-Location $originalLocation
     
     return @{
         RemoteUrl = $remoteUrl
@@ -142,17 +161,56 @@ function Get-RepoInfo {
     }
 }
 
-function New-CloneScript {
-    param(
-        [string]$SearchPath,
-        [string]$OutputFile
-    )
+function Find-AllRepos {
+    param([string]$SearchPath)
     
+    Write-Step "Buscando repositórios Git recursivamente..."
+    Write-Host ""
+    
+    # Buscar todos os diretórios .git recursivamente
+    $gitDirs = Get-ChildItem -Path $SearchPath -Directory -Recurse -Filter ".git" -Force -ErrorAction SilentlyContinue
+    
+    $total = $gitDirs.Count
+    Write-Info "Encontrados $total repositórios Git"
+    Write-Host ""
+    
+    $current = 0
+    foreach ($gitDir in $gitDirs) {
+        $current++
+        $repoPath = $gitDir.Parent.FullName
+        
+        # Caminho relativo à pasta de busca
+        $relativePath = $repoPath.Substring($SearchPath.Length).TrimStart('\', '/')
+        
+        # Obter informações do repo
+        $repoInfo = Get-RepoInfo -RepoPath $repoPath
+        
+        Write-Host "[$current/$total] " -ForegroundColor Cyan -NoNewline
+        Write-Host $relativePath
+        
+        if ([string]::IsNullOrWhiteSpace($repoInfo.RemoteUrl)) {
+            Write-Warn "  └── Sem remote origin (ignorado)"
+            $script:ReposNoRemote += $relativePath
+        }
+        else {
+            Write-Host "  ├── Remote: $($repoInfo.RemoteUrl)"
+            Write-Host "  └── Branch: $($repoInfo.Branch)"
+            $script:ReposFound += @{
+                RelativePath = $relativePath
+                RemoteUrl = $repoInfo.RemoteUrl
+                Branch = $repoInfo.Branch
+            }
+        }
+    }
+}
+
+function New-CloneScript {
+    param([string]$OutputFile, [string]$SearchPath)
+    
+    Write-Host ""
     Write-Step "Gerando script de clonagem..."
     
-    $repoCount = 0
-    
-    # Cabeçalho do script
+    # Cabeçalho do script gerado
     $scriptContent = @'
 # ============================================================================
 # Script: clone-repos.ps1 (gerado automaticamente)
@@ -192,8 +250,23 @@ function Write-Err {
     Write-Host "❌ $Message" -ForegroundColor Red
 }
 
+function Write-Install {
+    param([string]$Message)
+    Write-Host "📦 $Message" -ForegroundColor Yellow
+}
+
+function Write-Update {
+    param([string]$Message)
+    Write-Host "🔄 $Message" -ForegroundColor Cyan
+}
+
+# Tracking
+$script:ReposCloned = @()
+$script:ReposSkipped = @()
+$script:ReposFailed = @()
+
 # ============================================================================
-# Clone Function
+# Functions
 # ============================================================================
 
 function Invoke-CloneRepo {
@@ -207,86 +280,116 @@ function Invoke-CloneRepo {
     
     if (Test-Path (Join-Path $targetDir ".git")) {
         Write-Warn "Repo já existe: $RelativePath"
+        $script:ReposSkipped += $RelativePath
         return
     }
     
-    Write-Info "Clonando: $RelativePath"
-    Write-Info "  URL: $RemoteUrl"
-    Write-Info "  Branch: $Branch"
+    Write-Install "Clonando: $RelativePath"
+    Write-Host "  ├── URL: $RemoteUrl"
+    Write-Host "  └── Branch: $Branch"
     
+    # Criar pasta pai se não existir
     $parentDir = Split-Path -Parent $targetDir
     if (-not (Test-Path $parentDir)) {
         New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
     }
     
-    try {
-        git clone --branch $Branch $RemoteUrl $targetDir 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Success "Clonado: $RelativePath"
-        } else {
-            throw "Clone failed"
-        }
+    # Tentar clonar com branch específica
+    $result = git clone --branch $Branch $RemoteUrl $targetDir 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Clonado: $RelativePath"
+        $script:ReposCloned += $RelativePath
     }
-    catch {
+    else {
         # Tentar sem branch específica
-        try {
-            git clone $RemoteUrl $targetDir 2>$null
+        $result = git clone $RemoteUrl $targetDir 2>&1
+        if ($LASTEXITCODE -eq 0) {
             Write-Warn "Clonado (branch padrão): $RelativePath"
+            $script:ReposCloned += $RelativePath
         }
-        catch {
+        else {
             Write-Err "Falha ao clonar: $RelativePath"
+            $script:ReposFailed += $RelativePath
         }
     }
 }
 
-Write-Step "Clonando repositórios para: $BaseDir"
+function Show-Summary {
+    Write-Host ""
+    Write-Host "============================================================================"
+    Write-Host " Resumo"
+    Write-Host "============================================================================"
+    
+    if ($script:ReposCloned.Count -gt 0) {
+        Write-Success "Clonados: $($script:ReposCloned.Count)"
+    }
+    
+    if ($script:ReposSkipped.Count -gt 0) {
+        Write-Warn "Já existentes: $($script:ReposSkipped.Count)"
+    }
+    
+    if ($script:ReposFailed.Count -gt 0) {
+        Write-Err "Falhas: $($script:ReposFailed.Count)"
+        foreach ($repo in $script:ReposFailed) {
+            Write-Host "  - $repo"
+        }
+    }
+}
 
 # ============================================================================
-# Repositories
+# Main
 # ============================================================================
+
+function Main {
+    Write-Step "Clonando repositórios para: $BaseDir"
+    Write-Host ""
 
 '@
 
     # Adicionar metadados
     $scriptContent += "`n# Gerado em: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
-    $scriptContent += "# Pasta original: $SearchPath`n`n"
+    $scriptContent += "# Pasta original: $SearchPath`n"
+    $scriptContent += "# Total de repositórios: $($script:ReposFound.Count)`n`n"
     
-    # Processar cada repositório
-    $repos = Find-GitRepos -SearchPath $SearchPath
-    
-    foreach ($repoPath in $repos) {
-        $repoInfo = Get-RepoInfo -RepoPath $repoPath
-        
-        # Caminho relativo à pasta de busca
-        $relativePath = $repoPath.Substring($SearchPath.Length).TrimStart('\', '/')
-        
-        if ([string]::IsNullOrWhiteSpace($repoInfo.RemoteUrl)) {
-            Write-Warn "Repo sem remote origin: $relativePath"
-            $scriptContent += "# AVISO: Repo local sem remote - $relativePath`n"
-            continue
-        }
-        
-        $scriptContent += "Invoke-CloneRepo -RelativePath `"$relativePath`" -RemoteUrl `"$($repoInfo.RemoteUrl)`" -Branch `"$($repoInfo.Branch)`"`n"
-        $repoCount++
-        
-        Write-Info "Encontrado: $relativePath"
-        Write-Host "           Branch: $($repoInfo.Branch)"
+    # Adicionar chamadas de clone para cada repo
+    foreach ($repo in $script:ReposFound) {
+        $scriptContent += "    Invoke-CloneRepo -RelativePath `"$($repo.RelativePath)`" -RemoteUrl `"$($repo.RemoteUrl)`" -Branch `"$($repo.Branch)`"`n"
     }
     
     # Footer do script
     $scriptContent += @'
 
-# ============================================================================
-# Summary
-# ============================================================================
+    Show-Summary
+}
 
-Write-Success "Processo de clonagem concluído!"
+Main
 '@
 
     # Salvar arquivo
     $scriptContent | Out-File -FilePath $OutputFile -Encoding utf8
+}
+
+function Show-Summary {
+    Write-Host ""
+    Write-Host "============================================================================"
+    Write-Host " Resumo"
+    Write-Host "============================================================================"
     
-    return $repoCount
+    Write-Success "Repositórios encontrados: $($script:ReposFound.Count)"
+    
+    if ($script:ReposNoRemote.Count -gt 0) {
+        Write-Warn "Sem remote (ignorados): $($script:ReposNoRemote.Count)"
+        foreach ($repo in $script:ReposNoRemote) {
+            Write-Host "  - $repo"
+        }
+    }
+    
+    Write-Host ""
+    Write-Success "Script gerado: $script:OutputFile"
+    Write-Host ""
+    Write-Info "Para usar em outro computador:"
+    Write-Host "    1. Copie o arquivo '$script:OutputFile' para o destino"
+    Write-Host "    2. Execute: .\$script:OutputFile -BaseDir [pasta_destino]"
 }
 
 # ============================================================================
@@ -297,20 +400,25 @@ function Main {
     Write-Step "Exportador de Repositórios Git"
     Write-Host ""
     
-    $searchPath = Get-SearchPath -InputPath $Path
-    $outputFile = Get-OutputFile -InputFile $Output
+    if ($Help) {
+        Show-Usage
+        exit 0
+    }
     
+    Test-Prerequisites
+    $script:SearchPath = Get-SearchPath -InputPath $Path
+    $script:OutputFile = Get-OutputFile -InputFile $Output
     Write-Host ""
     
-    $count = New-CloneScript -SearchPath $searchPath -OutputFile $outputFile
+    Find-AllRepos -SearchPath $script:SearchPath
     
-    Write-Host ""
-    Write-Success "Script gerado: $outputFile"
-    Write-Success "Total de repositórios: $count"
-    Write-Host ""
-    Write-Info "Para usar em outro computador:"
-    Write-Host "    1. Copie o arquivo '$outputFile' para o destino"
-    Write-Host "    2. Execute: .\$outputFile -BaseDir [pasta_destino]"
+    if ($script:ReposFound.Count -eq 0) {
+        Write-Warn "Nenhum repositório com remote origin encontrado."
+        exit 0
+    }
+    
+    New-CloneScript -OutputFile $script:OutputFile -SearchPath $script:SearchPath
+    Show-Summary
 }
 
 Main
