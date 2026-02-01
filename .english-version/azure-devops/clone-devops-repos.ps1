@@ -62,6 +62,35 @@ $script:ReposStashed = @()
 $script:ReposFailed = @()
 $script:Cancelled = $false
 
+# Progress tracking
+$script:TotalRepos = 0
+$script:CurrentRepo = 0
+$script:StartTime = $null
+$script:RepoTimes = @()
+$script:EstimatedFinish = ""
+
+# Format time remaining dynamically
+function Format-TimeRemaining {
+    param([double]$Seconds)
+    
+    if ($Seconds -lt 60) {
+        return "   ~{0}s" -f [int][math]::Round($Seconds)
+    }
+    elseif ($Seconds -lt 3600) {
+        return " ~{0}min" -f [int][math]::Ceiling($Seconds / 60)
+    }
+    elseif ($Seconds -lt 86400) {
+        $hours = [int][math]::Floor($Seconds / 3600)
+        $mins = [int][math]::Round(($Seconds % 3600) / 60)
+        return " ~{0}h{1:D2}" -f $hours, $mins
+    }
+    else {
+        $days = [int][math]::Floor($Seconds / 86400)
+        $hours = [int][math]::Round(($Seconds % 86400) / 3600)
+        return "~{0}d{1}h" -f $days, $hours
+    }
+}
+
 # Handler for Ctrl+C
 $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
     $script:Cancelled = $true
@@ -205,36 +234,73 @@ function Copy-Repository {
         [string]$RepoUrl
     )
     
+    $repoStartTime = Get-Date
+    $script:CurrentRepo++
     $targetDir = Join-Path $ClonePath $RepoName
     $hadStash = $false
+    
+    # Calculate progress and estimated time
+    $percent = [math]::Round(($script:CurrentRepo / $script:TotalRepos) * 100)
+    $eta = "     --"
+    $finishDisplay = "      --"
+    
+    if ($script:RepoTimes.Count -gt 0) {
+        $avgTime = ($script:RepoTimes | Measure-Object -Average).Average
+        $remaining = $script:TotalRepos - $script:CurrentRepo
+        $etaSeconds = $avgTime * $remaining
+        $eta = Format-TimeRemaining $etaSeconds
+        
+        # Calculate finish time with days indicator
+        $finishTime = (Get-Date).AddSeconds($etaSeconds)
+        $daysAhead = [int]($finishTime.Date - (Get-Date).Date).TotalDays
+        
+        if ($daysAhead -eq 0) {
+            $finishDisplay = $finishTime.ToString("HH:mm").PadLeft(8)
+        } elseif ($daysAhead -eq 1) {
+            $finishDisplay = ($finishTime.ToString("HH:mm") + "+1d").PadLeft(8)
+        } elseif ($daysAhead -gt 1) {
+            $finishDisplay = ($finishTime.ToString("HH:mm") + "+{0}d" -f $daysAhead).PadLeft(8)
+        }
+        $script:EstimatedFinish = $finishDisplay
+    }
+    
+    # Format number with leading zeros (dynamic based on total)
+    $digits = $script:TotalRepos.ToString().Length
+    $numFormat = "{0:D$digits}/{1:D$digits}" -f $script:CurrentRepo, $script:TotalRepos
+    $progressInfo = "[{0}  {1,3}%  ⏳{2,7} ⏰{3}]" -f $numFormat, $percent, $eta, $finishDisplay
     
     # Build URL with authentication
     # Remove existing credential (org@) if present, and add user:pat@
     $authUrl = $RepoUrl -replace "https://[^@]+@", "https://"
     $authUrl = $authUrl -replace "https://", "https://${Username}:${Pat}@"
     
+    # Truncate repo name if too long
+    $maxLen = 42
+    $displayName = if ($RepoName.Length -gt $maxLen) { $RepoName.Substring(0, $maxLen-2) + ".." } else { $RepoName.PadRight($maxLen, '.') }
+    
     if (Test-Path (Join-Path $targetDir ".git")) {
-        Write-Update "Updating: $RepoName"
+        # Show progress line
+        Write-Host $progressInfo -ForegroundColor Yellow -NoNewline
+        Write-Host "  🔄 " -NoNewline
         
         try {
             Push-Location $targetDir
             
             # Check for local changes
-            $diffOutput = git diff --quiet 2>&1
-            $diffCachedOutput = git diff --cached --quiet 2>&1
+            git diff --quiet 2>&1 | Out-Null
             $hasChanges = ($LASTEXITCODE -ne 0)
             
             if ($hasChanges) {
-                Write-Warning "  Local changes detected, stashing..."
-                $stashResult = git stash push -m "auto-stash before pull $(Get-Date -Format 'yyyyMMdd-HHmmss')" --quiet 2>&1
+                $stashResult = git stash push -m "auto-stash $(Get-Date -Format 'yyyyMMdd-HHmmss')" --quiet 2>&1
                 if ($LASTEXITCODE -eq 0) {
                     $hadStash = $true
                     $script:ReposStashed += $RepoName
-                }
-                else {
-                    Write-Error "  Failed to stash"
-                    $script:ReposFailed += "$RepoName (stash failed)"
+                } else {
+                    Write-Host $displayName -ForegroundColor Red -NoNewline
+                    Write-Host " ❌ stash failed" -ForegroundColor Red
+                    $script:ReposFailed += $RepoName
                     Pop-Location
+                    $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
                     return $false
                 }
             }
@@ -243,59 +309,59 @@ function Copy-Repository {
             git pull --quiet 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $script:ReposUpdated += $RepoName
-                if ($hadStash) {
-                    Write-Info "  Restoring stash..."
-                    git stash pop --quiet 2>&1 | Out-Null
-                    if ($LASTEXITCODE -ne 0) {
-                        Write-Warning "  ⚠️ Conflict restoring stash. Use 'git stash pop' manually."
-                    }
-                }
-                Write-Success "OK: $RepoName"
-            }
-            else {
-                Write-Error "  Pull failed"
-                $script:ReposFailed += "$RepoName (pull failed)"
-                if ($hadStash) {
-                    git stash pop --quiet 2>&1 | Out-Null
-                }
+                if ($hadStash) { git stash pop --quiet 2>&1 | Out-Null }
+                Write-Host $displayName -ForegroundColor Green -NoNewline
+                Write-Host " ✅" -ForegroundColor Green
+            } else {
+                Write-Host $displayName -ForegroundColor Red -NoNewline
+                Write-Host " ❌ pull failed" -ForegroundColor Red
+                $script:ReposFailed += $RepoName
+                if ($hadStash) { git stash pop --quiet 2>&1 | Out-Null }
                 Pop-Location
+                $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
                 return $false
             }
-            
             Pop-Location
         }
         catch {
-            Write-Warning "Failed to update $RepoName"
-            $script:ReposFailed += "$RepoName (error: $_)"
+            Write-Host $displayName -ForegroundColor Red -NoNewline
+            Write-Host " ❌ internal error" -ForegroundColor Red
+            $script:ReposFailed += $RepoName
             Pop-Location
+            $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
             return $false
         }
     }
     else {
-        Write-Install "Cloning: $RepoName"
+        # Show progress line
+        Write-Host $progressInfo -ForegroundColor Yellow -NoNewline
+        Write-Host "  📦 " -NoNewline
+        
         try {
-            $cloneOutput = git clone $authUrl $targetDir 2>&1
+            git clone --quiet $authUrl $targetDir 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $script:ReposCloned += $RepoName
-                Write-Success "OK: $RepoName"
-            }
-            else {
-                Write-Error "Failed to clone: $RepoName"
-                # Show error without exposing credentials
-                $safeOutput = $cloneOutput -replace "${Pat}", "***"
-                $safeOutput = $safeOutput -replace "${Username}", "***"
-                Write-Host "    $safeOutput" -ForegroundColor DarkGray
-                $script:ReposFailed += "$RepoName (clone failed)"
+                Write-Host $displayName -ForegroundColor Green -NoNewline
+                Write-Host " ✅" -ForegroundColor Green
+            } else {
+                Write-Host $displayName -ForegroundColor Red -NoNewline
+                Write-Host " ❌ clone failed" -ForegroundColor Red
+                $script:ReposFailed += $RepoName
+                $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
                 return $false
             }
         }
         catch {
-            Write-Warning "Failed to clone $RepoName : $_"
-            $script:ReposFailed += "$RepoName (clone failed)"
+            Write-Host $displayName -ForegroundColor Red -NoNewline
+            Write-Host " ❌ $($_.Exception.Message.Split(' ')[0..3] -join ' ')" -ForegroundColor Red
+            $script:ReposFailed += $RepoName
+            $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
             return $false
         }
     }
     
+    # Record time
+    $script:RepoTimes += ((Get-Date) - $repoStartTime).TotalSeconds
     return $true
 }
 
@@ -346,11 +412,24 @@ function Write-Summary {
     Write-Host "------------------------------------------------------------"
     $total = $script:ReposCloned.Count + $script:ReposUpdated.Count + $script:ReposFailed.Count
     $success = $script:ReposCloned.Count + $script:ReposUpdated.Count
+    
+    # Execution time
+    $elapsed = (Get-Date) - $script:StartTime
+    $elapsedFormatted = ""
+    if ($elapsed.TotalSeconds -lt 60) {
+        $elapsedFormatted = "{0}s" -f [math]::Round($elapsed.TotalSeconds)
+    } elseif ($elapsed.TotalMinutes -lt 60) {
+        $elapsedFormatted = "{0}min {1}s" -f [math]::Floor($elapsed.TotalMinutes), $elapsed.Seconds
+    } else {
+        $elapsedFormatted = "{0}h {1}min" -f [math]::Floor($elapsed.TotalHours), $elapsed.Minutes
+    }
+    
     Write-Host "📊 TOTAL: $success of $total repositories processed successfully" -ForegroundColor White
     Write-Host "   📦 Cloned:    $($script:ReposCloned.Count)"
     Write-Host "   🔄 Updated:   $($script:ReposUpdated.Count)"
     Write-Host "   📂 Stashed:   $($script:ReposStashed.Count)"
     Write-Host "   ❌ Failed:    $($script:ReposFailed.Count)"
+    Write-Host "   ⏱️ Time:      $elapsedFormatted"
     Write-Host "------------------------------------------------------------"
     Write-Info "Location: $ClonePath"
 }
@@ -389,6 +468,15 @@ function Main {
         Write-Warning "No repositories found in project"
         exit 0
     }
+    
+    # Initialize progress
+    $script:TotalRepos = $repos.Count
+    $script:CurrentRepo = 0
+    $script:StartTime = Get-Date
+    
+    Write-Host ""
+    Write-Host "📋 Total: $($script:TotalRepos) repositories | ⏱️ Start: $($script:StartTime.ToString('HH:mm')) | ⏳=left | ⏰=finish" -ForegroundColor Cyan
+    Write-Host ""
     
     foreach ($repo in $repos) {
         if ($script:Cancelled) {

@@ -40,12 +40,55 @@ REPOS_UPDATED=()
 REPOS_STASHED=()
 REPOS_FAILED=()
 
+# Progress tracking
+TOTAL_REPOS=0
+CURRENT_REPO=0
+START_TIME=0
+REPO_TIMES=()
+CANCELLED=false
+ESTIMATED_FINISH=""
+
 # Error handling
 trap 'print_error "Erro na linha $LINENO"; exit 1' ERR
+
+# Ctrl+C handler
+trap 'CANCELLED=true; echo ""; print_warning "Cancelado pelo usuário..."; ' INT
 
 # ============================================================================
 # Functions
 # ============================================================================
+
+# Formatar tempo restante de forma dinâmica
+format_time_remaining() {
+    local seconds=$1
+    
+    if (( seconds < 60 )); then
+        printf "   ~%ds" "$seconds"
+    elif (( seconds < 3600 )); then
+        printf " ~%dmin" $(( (seconds + 59) / 60 ))
+    elif (( seconds < 86400 )); then
+        local hours=$(( seconds / 3600 ))
+        local mins=$(( (seconds % 3600) / 60 ))
+        printf " ~%dh%02d" "$hours" "$mins"
+    else
+        local days=$(( seconds / 86400 ))
+        local hours=$(( (seconds % 86400) / 3600 ))
+        printf "~%dd%dh" "$days" "$hours"
+    fi
+}
+
+# Formatar tempo decorrido
+format_elapsed() {
+    local seconds=$1
+    
+    if (( seconds < 60 )); then
+        printf "%ds" "$seconds"
+    elif (( seconds < 3600 )); then
+        printf "%dmin %ds" $(( seconds / 60 )) $(( seconds % 60 ))
+    else
+        printf "%dh %dmin" $(( seconds / 3600 )) $(( (seconds % 3600) / 60 ))
+    fi
+}
 
 show_usage() {
     echo "Uso: $0 [opções]"
@@ -179,8 +222,51 @@ get_repositories() {
 clone_repository() {
     local repo_name="$1"
     local repo_url="$2"
+    local repo_start_time=$(date +%s)
     local target_dir="${CLONE_PATH}/${repo_name}"
     local had_stash=false
+    
+    ((CURRENT_REPO++))
+    
+    # Calcular progresso e tempo estimado
+    local percent=$(( (CURRENT_REPO * 100) / TOTAL_REPOS ))
+    local eta="     --"
+    local finish_display="     --"
+    
+    if (( ${#REPO_TIMES[@]} > 0 )); then
+        local sum=0
+        for t in "${REPO_TIMES[@]}"; do
+            sum=$((sum + t))
+        done
+        local avg=$((sum / ${#REPO_TIMES[@]}))
+        local remaining=$((TOTAL_REPOS - CURRENT_REPO))
+        local eta_seconds=$((avg * remaining))
+        eta=$(format_time_remaining "$eta_seconds")
+        
+        # Calcular horário previsto com indicador de dias
+        local finish_time=$(($(date +%s) + eta_seconds))
+        local finish_date=$(date -d "@$finish_time" +%Y-%m-%d 2>/dev/null || date -r "$finish_time" +%Y-%m-%d 2>/dev/null)
+        local today=$(date +%Y-%m-%d)
+        local today_epoch=$(date -d "$today" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$today" +%s 2>/dev/null)
+        local finish_date_epoch=$(date -d "$finish_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$finish_date" +%s 2>/dev/null)
+        local days_ahead=$(( (finish_date_epoch - today_epoch) / 86400 ))
+        
+        local finish_time_str=$(date -d "@$finish_time" +%H:%M 2>/dev/null || date -r "$finish_time" +%H:%M 2>/dev/null)
+        
+        if (( days_ahead == 0 )); then
+            finish_display=$(printf "%8s" "$finish_time_str")
+        elif (( days_ahead == 1 )); then
+            finish_display=$(printf "%8s" "${finish_time_str}+1d")
+        else
+            finish_display=$(printf "%8s" "${finish_time_str}+${days_ahead}d")
+        fi
+        ESTIMATED_FINISH="$finish_display"
+    fi
+    
+    # Formatar número com zeros à esquerda (dinâmico baseado no total)
+    local digits=${#TOTAL_REPOS}
+    local num_format=$(printf "%0${digits}d/%0${digits}d" "$CURRENT_REPO" "$TOTAL_REPOS")
+    local progress_info=$(printf "[%s  %3d%%  ⏳%7s ⏰%s]" "$num_format" "$percent" "$eta" "$finish_display")
     
     # Construir URL com autenticação
     # Remover credencial existente (org@) se houver, e adicionar user:pat@
@@ -189,21 +275,35 @@ clone_repository() {
     local auth_url
     auth_url=$(echo "$clean_url" | sed "s|https://|https://${USERNAME}:${PAT}@|")
     
+    # Truncar nome do repo se muito longo
+    local max_len=42
+    local display_name
+    if (( ${#repo_name} > max_len )); then
+        display_name="${repo_name:0:$((max_len-2))}.."
+    else
+        display_name=$(printf "%-${max_len}s" "$repo_name" | tr ' ' '.')
+    fi
+    
     if [[ -d "$target_dir/.git" ]]; then
-        print_update "Atualizando: $repo_name"
+        # Mostrar linha de progresso
+        echo -n -e "${YELLOW}${progress_info}${NC}  🔄 "
         
         cd "$target_dir"
         
         # Verificar se há mudanças locais
         if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-            print_warning "  Mudanças locais detectadas, fazendo stash..."
-            if git stash push -m "auto-stash antes de pull $(date +%Y%m%d-%H%M%S)" --quiet 2>/dev/null; then
+            if git stash push -m "auto-stash $(date +%Y%m%d-%H%M%S)" --quiet 2>/dev/null; then
                 had_stash=true
                 REPOS_STASHED+=("$repo_name")
             else
-                print_error "  Falha ao fazer stash"
-                REPOS_FAILED+=("$repo_name (stash falhou)")
+                echo -e "${RED}${display_name} ❌ stash falhou${NC}"
+                REPOS_FAILED+=("$repo_name")
                 cd - > /dev/null
+                
+                # Registrar tempo
+                local repo_end_time=$(date +%s)
+                local repo_duration=$((repo_end_time - repo_start_time))
+                REPO_TIMES+=("$repo_duration")
                 return 1
             fi
         fi
@@ -212,35 +312,51 @@ clone_repository() {
         if git pull --quiet 2>/dev/null; then
             REPOS_UPDATED+=("$repo_name")
             if [[ "$had_stash" == "true" ]]; then
-                print_info "  Restaurando stash..."
                 if ! git stash pop --quiet 2>/dev/null; then
-                    print_warning "  ⚠️ Conflito ao restaurar stash. Use 'git stash pop' manualmente."
+                    : # silencioso - conflitos são tratados depois
                 fi
             fi
-            print_success "OK: $repo_name"
+            echo -e "${GREEN}${display_name} ✅${NC}"
         else
-            print_error "  Falha no pull"
-            REPOS_FAILED+=("$repo_name (pull falhou)")
+            echo -e "${RED}${display_name} ❌ pull falhou${NC}"
+            REPOS_FAILED+=("$repo_name")
             # Restaurar stash mesmo se pull falhou
             if [[ "$had_stash" == "true" ]]; then
                 git stash pop --quiet 2>/dev/null || true
             fi
             cd - > /dev/null
+            
+            # Registrar tempo
+            local repo_end_time=$(date +%s)
+            local repo_duration=$((repo_end_time - repo_start_time))
+            REPO_TIMES+=("$repo_duration")
             return 1
         fi
         
         cd - > /dev/null
     else
-        print_install "Clonando: $repo_name"
+        # Mostrar linha de progresso para clone
+        echo -n -e "${YELLOW}${progress_info}${NC}  📦 "
+        
         if git clone --quiet "$auth_url" "$target_dir" 2>/dev/null; then
             REPOS_CLONED+=("$repo_name")
-            print_success "OK: $repo_name"
+            echo -e "${GREEN}${display_name} ✅${NC}"
         else
-            print_error "Falha ao clonar: $repo_name"
-            REPOS_FAILED+=("$repo_name (clone falhou)")
+            echo -e "${RED}${display_name} ❌ clone falhou${NC}"
+            REPOS_FAILED+=("$repo_name")
+            
+            # Registrar tempo
+            local repo_end_time=$(date +%s)
+            local repo_duration=$((repo_end_time - repo_start_time))
+            REPO_TIMES+=("$repo_duration")
             return 1
         fi
     fi
+    
+    # Registrar tempo
+    local repo_end_time=$(date +%s)
+    local repo_duration=$((repo_end_time - repo_start_time))
+    REPO_TIMES+=("$repo_duration")
 }
 
 print_summary() {
@@ -290,11 +406,18 @@ print_summary() {
     echo "------------------------------------------------------------"
     local total=$((${#REPOS_CLONED[@]} + ${#REPOS_UPDATED[@]} + ${#REPOS_FAILED[@]}))
     local success=$((${#REPOS_CLONED[@]} + ${#REPOS_UPDATED[@]}))
+    
+    # Tempo de execução
+    local end_time=$(date +%s)
+    local elapsed=$((end_time - START_TIME))
+    local elapsed_formatted=$(format_elapsed "$elapsed")
+    
     echo -e "${WHITE}📊 TOTAL: $success de $total repositórios processados com sucesso${NC}"
     echo -e "   📦 Clonados:    ${#REPOS_CLONED[@]}"
     echo -e "   🔄 Atualizados: ${#REPOS_UPDATED[@]}"
     echo -e "   📂 Com stash:   ${#REPOS_STASHED[@]}"
     echo -e "   ❌ Falhas:      ${#REPOS_FAILED[@]}"
+    echo -e "   ⏱️ Tempo:       $elapsed_formatted"
     echo "------------------------------------------------------------"
     print_info "Local: $CLONE_PATH"
 }
@@ -369,7 +492,19 @@ main() {
         exit 0
     fi
     
+    # Contar repos
+    TOTAL_REPOS=$(echo "$repos" | wc -l)
+    CURRENT_REPO=0
+    START_TIME=$(date +%s)
+    
+    echo ""
+    echo -e "${CYAN}📋 Total: ${TOTAL_REPOS} repositórios | ⏱️ Início: $(date +%H:%M) | ⏳=restante | ⏰=término${NC}"
+    echo ""
+    
     while IFS='|' read -r repo_name repo_url; do
+        if [[ "$CANCELLED" == "true" ]]; then
+            break
+        fi
         clone_repository "$repo_name" "$repo_url" || true
     done <<< "$repos"
     
