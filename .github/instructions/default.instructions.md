@@ -12,7 +12,7 @@ applyTo: '**'
 
 <load-order critical="true">
   <step n="1" goal="Carregar Core">
-    <mandate>Ler e aplicar: {workspace}/.github/.copilot/core/initial.md</mandate>
+    <mandate>Ler e aplicar: {workspace}/.github/initial.md</mandate>
     <includes>
       - workflow-engine.md (motor de execução)
       - skills-system.md (sistema de skills)
@@ -21,7 +21,7 @@ applyTo: '**'
   </step>
   
   <step n="2" goal="Carregar Project">
-    <mandate>Ler e aplicar: {workspace}/.github/.copilot/project/initial.md</mandate>
+    <mandate>Ler e aplicar: {workspace}/.github-project/initial.md</mandate>
     <includes>
       - conventions.md (padrões de código)
       - cross-platform.md (regras multiplataforma)
@@ -54,29 +54,29 @@ applyTo: '**'
 </skill-deactivation>
 
 <skill-loading critical="true">
-  <mandate>Ao trabalhar com arquivos *.sh, VOCÊ DEVE ler e aplicar: {workspace}/.github/.copilot/project/skills/bash.md</mandate>
-  <mandate>Ao trabalhar com arquivos *.ps1, VOCÊ DEVE ler e aplicar: {workspace}/.github/.copilot/project/skills/powershell.md</mandate>
-  <mandate>Ao trabalhar com README.md, VOCÊ DEVE ler e aplicar: {workspace}/.github/.copilot/project/skills/readme.md</mandate>
-  <mandate>Após modificar scripts, VOCÊ DEVE ler e aplicar: {workspace}/.github/.copilot/project/skills/sync.md</mandate>
-  <mandate>Ao tomar decisão arquitetural importante, VOCÊ DEVE ler e aplicar: {workspace}/.github/.copilot/project/skills/memory.md</mandate>
+  <mandate>Ao trabalhar com arquivos *.sh, VOCÊ DEVE ler e aplicar: {workspace}/.github-project/skills/bash.md</mandate>
+  <mandate>Ao trabalhar com arquivos *.ps1, VOCÊ DEVE ler e aplicar: {workspace}/.github-project/skills/powershell.md</mandate>
+  <mandate>Ao trabalhar com README.md, VOCÊ DEVE ler e aplicar: {workspace}/.github-project/skills/readme.md</mandate>
+  <mandate>Após modificar scripts, VOCÊ DEVE ler e aplicar: {workspace}/.github-project/skills/sync.md</mandate>
+  <mandate>Ao tomar decisão arquitetural importante, VOCÊ DEVE ler e aplicar: {workspace}/.github-project/skills/memory.md</mandate>
 </skill-loading>
 
 <skill-discovery critical="true">
   <mandate>Se a extensão do arquivo NÃO está listada acima:</mandate>
-  <action>Ler: {workspace}/.github/.copilot/project/skills-catalog.md</action>
+  <action>Ler: {workspace}/.github-project/skills-catalog.md</action>
   <action>Verificar se existe skill para a extensão</action>
   <check if="skill existe">
     <action>Carregar o skill indicado</action>
   </check>
   <check if="skill NÃO existe">
-    <action>Ler: {workspace}/.github/.copilot/core/skills/create-skill.md</action>
+    <action>Ler: {workspace}/.github/skills/create-skill.md</action>
     <action>Criar skill para o novo tipo de arquivo</action>
   </check>
 </skill-discovery>
 
 <structure-update critical="true">
   <mandate>Após criar NOVA PASTA ou NOVO TIPO de script:</mandate>
-  <action>Ler: {workspace}/.github/.copilot/project/skills/update-structure.md</action>
+  <action>Ler: {workspace}/.github-project/skills/update-structure.md</action>
   <action>Executar workflow de atualização de estrutura</action>
 </structure-update>
 
@@ -144,34 +144,34 @@ applyTo: '**'
 <workflow id="file-detection" trigger="on-file-context">
   <step n="1" goal="Detectar tipo e carregar skill apropriada">
     <check if="contexto envolve arquivo *.sh OU pedido para criar script bash">
-      <action>Ler COMPLETAMENTE: {workspace}/.github/.copilot/project/skills/bash.md</action>
+      <action>Ler COMPLETAMENTE: {workspace}/.github-project/skills/bash.md</action>
       <action>Aplicar todos os padrões e templates do skill</action>
     </check>
     
     <check if="contexto envolve arquivo *.ps1 OU pedido para criar script PowerShell">
-      <action>Ler COMPLETAMENTE: {workspace}/.github/.copilot/project/skills/powershell.md</action>
+      <action>Ler COMPLETAMENTE: {workspace}/.github-project/skills/powershell.md</action>
       <action>Aplicar todos os padrões e templates do skill</action>
     </check>
     
     <check if="contexto envolve README.md">
-      <action>Ler COMPLETAMENTE: {workspace}/.github/.copilot/project/skills/readme.md</action>
+      <action>Ler COMPLETAMENTE: {workspace}/.github-project/skills/readme.md</action>
       <action>Aplicar estrutura obrigatória</action>
     </check>
     
     <check if="extensão NÃO reconhecida acima">
-      <action>Consultar: {workspace}/.github/.copilot/project/skills-catalog.md</action>
+      <action>Consultar: {workspace}/.github-project/skills-catalog.md</action>
       <action>Seguir mapeamento extensão→skill</action>
     </check>
   </step>
 
   <step n="2" goal="Pós-modificação">
     <check if="script foi criado ou modificado">
-      <action>Ler: {workspace}/.github/.copilot/project/skills/sync.md</action>
+      <action>Ler: {workspace}/.github-project/skills/sync.md</action>
       <action>Executar workflow de sincronização</action>
     </check>
     
     <check if="nova pasta foi criada OU novo tipo de arquivo">
-      <action>Ler: {workspace}/.github/.copilot/project/skills/update-structure.md</action>
+      <action>Ler: {workspace}/.github-project/skills/update-structure.md</action>
       <action>Atualizar estrutura do projeto</action>
     </check>
   </step>

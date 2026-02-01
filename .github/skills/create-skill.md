@@ -30,11 +30,11 @@ Guiar a criação de novos skills para o projeto, garantindo estrutura consisten
 
   <step n="2" goal="Determinar localização">
     <check if="skill é genérico (reutilizável entre projetos)">
-      <action>Criar em .github/.copilot/core/skills/</action>
+      <action>Criar em .github/skills/</action>
     </check>
     
     <check if="skill é específico deste projeto">
-      <action>Criar em .github/.copilot/project/skills/</action>
+      <action>Criar em .github-project/skills/</action>
     </check>
   </step>
 

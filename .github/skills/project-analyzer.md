@@ -68,15 +68,15 @@ Este skill faz perguntas para entender o projeto antes de sugerir configuraçõe
 
   <step n="4" goal="Criar estrutura inicial">
     <check if="usuário aprova recomendações">
-      <action>Criar .github/.copilot/project/initial.md</action>
-      <action>Criar skills sugeridos em .github/.copilot/project/skills/</action>
+      <action>Criar .github-project/initial.md</action>
+      <action>Criar skills sugeridos em .github-project/skills/</action>
       <action>Atualizar default.instructions.md</action>
     </check>
     
     <output>
       ✅ **Projeto configurado**
       - {n} skills criados
-      - Estrutura pronta em .github/.copilot/project/
+      - Estrutura pronta em .github-project/
     </output>
   </step>
 </workflow>
