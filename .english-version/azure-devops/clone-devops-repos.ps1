@@ -60,6 +60,19 @@ $script:ReposCloned = @()
 $script:ReposUpdated = @()
 $script:ReposStashed = @()
 $script:ReposFailed = @()
+$script:Cancelled = $false
+
+# Handler for Ctrl+C
+$null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
+    $script:Cancelled = $true
+}
+
+trap {
+    Write-Host ""
+    Write-Warning "Operation cancelled by user"
+    $script:Cancelled = $true
+    break
+}
 
 # ============================================================================
 # Functions
@@ -196,7 +209,9 @@ function Copy-Repository {
     $hadStash = $false
     
     # Build URL with authentication
-    $authUrl = $RepoUrl -replace "https://", "https://${Username}:${Pat}@"
+    # Remove existing credential (org@) if present, and add user:pat@
+    $authUrl = $RepoUrl -replace "https://[^@]+@", "https://"
+    $authUrl = $authUrl -replace "https://", "https://${Username}:${Pat}@"
     
     if (Test-Path (Join-Path $targetDir ".git")) {
         Write-Update "Updating: $RepoName"
@@ -259,19 +274,23 @@ function Copy-Repository {
     else {
         Write-Install "Cloning: $RepoName"
         try {
-            git clone --quiet $authUrl $targetDir 2>&1 | Out-Null
+            $cloneOutput = git clone $authUrl $targetDir 2>&1
             if ($LASTEXITCODE -eq 0) {
                 $script:ReposCloned += $RepoName
                 Write-Success "OK: $RepoName"
             }
             else {
                 Write-Error "Failed to clone: $RepoName"
+                # Show error without exposing credentials
+                $safeOutput = $cloneOutput -replace "${Pat}", "***"
+                $safeOutput = $safeOutput -replace "${Username}", "***"
+                Write-Host "    $safeOutput" -ForegroundColor DarkGray
                 $script:ReposFailed += "$RepoName (clone failed)"
                 return $false
             }
         }
         catch {
-            Write-Warning "Failed to clone $RepoName"
+            Write-Warning "Failed to clone $RepoName : $_"
             $script:ReposFailed += "$RepoName (clone failed)"
             return $false
         }
@@ -372,10 +391,20 @@ function Main {
     }
     
     foreach ($repo in $repos) {
+        if ($script:Cancelled) {
+            Write-Warning "Cancelled by user"
+            break
+        }
         Copy-Repository -RepoName $repo.name -RepoUrl $repo.remoteUrl | Out-Null
     }
     
     Write-Summary
 }
 
-Main
+try {
+    Main
+}
+finally {
+    # Clean up event handler
+    Get-EventSubscriber -SourceIdentifier PowerShell.Exiting -ErrorAction SilentlyContinue | Unregister-Event -ErrorAction SilentlyContinue
+}

@@ -183,8 +183,11 @@ clone_repository() {
     local had_stash=false
     
     # Construir URL com autenticação
+    # Remover credencial existente (org@) se houver, e adicionar user:pat@
+    local clean_url
+    clean_url=$(echo "$repo_url" | sed 's|https://[^@]*@|https://|')
     local auth_url
-    auth_url=$(echo "$repo_url" | sed "s|https://|https://${USERNAME}:${PAT}@|")
+    auth_url=$(echo "$clean_url" | sed "s|https://|https://${USERNAME}:${PAT}@|")
     
     if [[ -d "$target_dir/.git" ]]; then
         print_update "Atualizando: $repo_name"
