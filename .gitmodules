@@ -1,0 +1,6 @@
+[submodule ".github/.copilot/project"]
+	path = .github/.copilot/project
+	url = https://github.com/pdmartins/.copilot-scripts.git
+[submodule ".github/.copilot/core"]
+	path = .github/.copilot/core
+	url = https://github.com/pdmartins/.copilot.git
