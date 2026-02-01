@@ -16,6 +16,29 @@ Registro de aprendizados e decisões importantes do projeto.
 
 ## Registro
 
+<lesson date="2026-02-01" category="arquitetura">
+  <context>
+    Necessidade de separar claramente o que é "core do agente" (reutilizável em qualquer projeto)
+    do que é "regra de projeto" (específico para projetos de scripts multi-plataforma).
+    Também havia necessidade de usar submodules para reutilizar o core em outros workspaces.
+  </context>
+  <decision>
+    Reestruturar para:
+    - `.github/.copilot/core/` - Core do agente (submodule reutilizável)
+    - `.github/.copilot/project/` - Regras do projeto (submodule específico)
+    - `.github/.copilot/memory/` - Memória local (não é submodule)
+    - `.github/instructions/default.instructions.md` - Agregador que carrega core + project
+    
+    Core contém: workflow-engine, skills-system, todo-workflow, project-analyzer, project-setup
+    Project contém: conventions, cross-platform, english-version, skills específicos
+  </decision>
+  <outcome>
+    - Separação clara entre core (genérico) e project (específico)
+    - Core pode ser usado como submodule em qualquer projeto
+    - Memory permanece local (específico de cada workspace)
+  </outcome>
+</lesson>
+
 <lesson date="2026-01-31" category="arquitetura">
   <context>
     Projeto precisa suportar novos tipos de scripts (SQL, Python, AWS, etc) sem carregar
@@ -23,15 +46,10 @@ Registro de aprendizados e decisões importantes do projeto.
   </context>
   <decision>
     Separar informações dinâmicas em arquivos dedicados:
-    - core/project-structure.md: estrutura atual do projeto (pastas, tipos)
-    - core/skills-catalog.md: catálogo de skills com mapeamento extensão→skill
+    - project-structure.md: estrutura atual do projeto (pastas, tipos)
+    - skills-catalog.md: catálogo de skills com mapeamento extensão→skill
     - skills/update-structure.md: skill para atualizar estrutura
     - skills/create-skill.md: skill para criar novos skills
-    
-    default.instructions.md mantém apenas:
-    - Regras fundamentais (idioma, segurança)
-    - Mandatos de carregamento de skills
-    - Referências aos arquivos core
   </decision>
   <outcome>
     - Estrutura extensível para novos tipos de script
@@ -49,10 +67,9 @@ Registro de aprendizados e decisões importantes do projeto.
   </context>
   <decision>
     Adotar modelo de "Skills" sob demanda:
-    - Skills ficam em pasta separada: skills/*.md
+    - Skills ficam em pasta separada
     - Não usam applyTo (são carregados explicitamente)
-    - default.instructions.md contém mandatos explícitos para carregar skills
-    - Usa tags <mandate> para instruir o modelo a ler arquivos quando contexto detectado
+    - Mandatos explícitos para carregar skills quando contexto detectado
   </decision>
   <outcome>
     - Controle explícito sobre quando skills são carregados
@@ -63,31 +80,20 @@ Registro de aprendizados e decisões importantes do projeto.
 
 <lesson date="2026-01-31" category="arquitetura">
   <context>
-    Instruções condicionais no default.instructions.md (tags <when>) não eram seguidas 
-    pelo Copilot porque LLMs interpretam XML como contexto, não como comandos executáveis.
+    Instruções condicionais (tags <when>) não eram seguidas pelo Copilot porque 
+    LLMs interpretam XML como contexto, não como comandos executáveis.
   </context>
   <decision>
     Migrar para arquitetura de Workflow Engine inspirada no BMAD Method:
-    - Criar core/workflow-engine.md como motor central
-    - Estruturar instruções em workflows com steps numerados
-    - Usar tags <check>, <action>, <validate>, <halt> para controle de fluxo
-    - Skills carregados sob demanda via mandatos explícitos
+    - workflow-engine.md como motor central
+    - Workflows com steps numerados
+    - Tags <check>, <action>, <validate>, <halt> para controle de fluxo
   </decision>
   <outcome>
     - Instruções organizadas em workflows determinísticos
     - Skills carregados quando contexto apropriado detectado
     - Estrutura escalável e fácil de manter
   </outcome>
-</lesson>
-
-<lesson date="2026-01-30" category="organização">
-  <context>Necessidade de separar instruções condicionais de referências diretas</context>
-  <decision>
-    - `default.instructions.md`: regras gerais com engine loader
-    - `skills/*.md`: instruções específicas por tipo de arquivo
-    - `core/*.md`: arquivos de referência e motor
-  </decision>
-  <outcome>Estrutura clara e fácil de estender</outcome>
 </lesson>
 
 ---
@@ -100,4 +106,4 @@ Registro de aprendizados e decisões importantes do projeto.
 | padrões | Convenções de código |
 | segurança | Práticas de segurança |
 | tooling | Ferramentas e automação |
-| bugs | Correções importantes |
+| debug | Correções importantes |

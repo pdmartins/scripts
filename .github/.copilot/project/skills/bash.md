@@ -1,10 +1,17 @@
-# Bash Script Instructions
+# Bash Script Skill
 
 <skill id="bash" context="*.sh files">
 
-<workflow id="bash-script-workflow" extends="workflow-engine">
-  <require>core/workflow-engine.md</require>
-  
+## Quando Usar
+
+<triggers>
+  - Criar/editar arquivos `*.sh`
+  - Pedido para criar script bash/shell
+</triggers>
+
+## Workflow
+
+<workflow id="bash-script-workflow">
   <step n="1" goal="Validar estrutura do script">
     <check if="arquivo novo">
       <action>Aplicar template base completo</action>
@@ -216,3 +223,5 @@ main "$@"
     <rule>Prefira printf sobre echo para portabilidade</rule>
   </best-practices>
 </conventions>
+
+</skill>

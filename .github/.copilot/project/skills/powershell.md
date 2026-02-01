@@ -1,10 +1,17 @@
-# PowerShell Script Instructions
+# PowerShell Script Skill
 
 <skill id="powershell" context="*.ps1 files">
 
-<workflow id="powershell-script-workflow" extends="workflow-engine">
-  <require>core/workflow-engine.md</require>
-  
+## Quando Usar
+
+<triggers>
+  - Criar/editar arquivos `*.ps1`
+  - Pedido para criar script PowerShell
+</triggers>
+
+## Workflow
+
+<workflow id="powershell-script-workflow">
   <step n="1" goal="Validar estrutura do script">
     <check if="arquivo novo">
       <action>Aplicar template base completo</action>
@@ -260,3 +267,5 @@ Main
   | Atualizando | Cyan | 🔄 |
   | Executando | White | 🚀 |
 </colors>
+
+</skill>

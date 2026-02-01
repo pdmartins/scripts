@@ -35,34 +35,40 @@ Foco em idempotência, portabilidade e bilinguismo (PT/EN).
 | Oh My Posh | Customização de terminal | ✅ Implementado |
 | Docker | Containerização | ✅ Implementado |
 | Azure CLI | Recursos Azure | ✅ Parcial (só Windows) |
+| Azure DevOps | DevOps CLI | ✅ Implementado |
 | SSH | Geração de chaves | ✅ Implementado |
+
+## Arquitetura de Prompts
+
+<prompt-architecture>
+  ```
+  .github/
+  ├── instructions/
+  │   └── default.instructions.md   # Agregador
+  └── .copilot/
+      ├── core/                     # 🔗 Submodule (reutilizável)
+      ├── project/                  # 🔗 Submodule (específico)
+      └── memory/                   # Local (não é submodule)
+  ```
+</prompt-architecture>
 
 ## Decisões Ativas
 
 <active-decisions>
-  <decision ref="lessons-learned:2026-01-31:arquitetura">
-    Skills carregados sob demanda via mandatos explícitos no default.instructions.md
+  <decision ref="2026-02-01">
+    Separação core (genérico) vs project (específico) com submodules
   </decision>
   
-  <decision ref="lessons-learned:2026-01-31:arquitetura">
-    Estrutura extensível com update-structure.md e create-skill.md
+  <decision ref="2026-01-31">
+    Skills carregados sob demanda via mandatos explícitos
   </decision>
   
-  <decision ref="lessons-learned:2026-01-31:arquitetura">
+  <decision ref="2026-01-31">
     Workflow Engine com tags XML para controle de fluxo
   </decision>
 </active-decisions>
 
-## Padrões de Pasta
-
-| Pasta | Conteúdo | Estratégia Sync |
-|-------|----------|-----------------|
-| docker/ | Instalação Docker | full-sync |
-| ssh/ | Geração de chaves | full-sync |
-| oh-my-posh/ | Temas OMP | full-sync |
-| azure/ | Azure CLI | platform-specific |
-
 ## Última Atualização
 
-**Data**: 2026-01-31
-**Motivo**: Criação inicial do contexto durante implementação do sistema de memória
+**Data**: 2026-02-01
+**Motivo**: Reestruturação para separar core vs project

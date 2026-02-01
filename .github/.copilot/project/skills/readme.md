@@ -1,10 +1,17 @@
-# README Instructions
+# README Skill
 
 <skill id="readme" context="README.md files">
 
-<workflow id="readme-workflow" extends="workflow-engine">
-  <require>core/workflow-engine.md</require>
-  
+## Quando Usar
+
+<triggers>
+  - Criar/editar `README.md`
+  - Nova pasta de scripts criada
+</triggers>
+
+## Workflow
+
+<workflow id="readme-workflow">
   <step n="1" goal="Determinar contexto do README">
     <action>Identificar pasta do README</action>
     <action>Listar scripts existentes na pasta</action>
@@ -127,24 +134,18 @@
     - Cobrir casos comuns de uso
     - Mostrar tanto PS1 quanto SH quando ambos existem
   </rule>
-  
-  <rule id="params-table">
-    Tabela de parâmetros deve incluir:
-    - Nome do parâmetro (PS1 e Bash se diferentes)
-    - Se é obrigatório
-    - Descrição clara
-    - Valor padrão se houver
-  </rule>
 </rules>
 
-## Checklist de Validação
+## Checklist
 
 <checklist>
-  <item>[ ] Título corresponde ao nome da pasta</item>
-  <item>[ ] Descrição clara e concisa</item>
-  <item>[ ] Tabela de scripts atualizada</item>
-  <item>[ ] Requisitos listados</item>
-  <item>[ ] Exemplos de uso para PS1 e SH</item>
-  <item>[ ] Parâmetros documentados</item>
-  <item>[ ] Versão EN sincronizada</item>
+  - [ ] Título corresponde ao nome da pasta
+  - [ ] Descrição clara e concisa
+  - [ ] Tabela de scripts atualizada
+  - [ ] Requisitos listados
+  - [ ] Exemplos de uso para PS1 e SH
+  - [ ] Parâmetros documentados
+  - [ ] Versão EN sincronizada
 </checklist>
+
+</skill>
