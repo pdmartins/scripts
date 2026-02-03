@@ -259,60 +259,44 @@ function Set-ChromePreferences {
 function Install-ExternalExtensions {
     param([object]$Config)
     
-    Write-Step "Instalando extensões via Registry (External Extensions)..."
+    Write-Step "Instalando extensões em todos os perfis..."
     
-    # Windows uses Registry, not JSON files
-    # 64-bit path (also works for 32-bit Chrome on 64-bit Windows)
-    $registryPath = "HKLM:\Software\Google\Chrome\Extensions"
-    
-    # Check if running as admin
-    if (-not (Test-Administrator)) {
-        Write-Warning "Precisa executar como Administrador para adicionar ao Registry."
-        Write-Info "Tentando usar HKCU (apenas para o usuário atual)..."
-        $registryPath = "HKCU:\Software\Google\Chrome\Extensions"
-    }
-    
-    # Create Extensions key if it doesn't exist
-    if (-not (Test-Path $registryPath)) {
-        New-Item -Path $registryPath -Force | Out-Null
-    }
-    
+    # Get all profile directories
+    $profiles = Get-ChromeProfiles
     $extensions = $Config.extensions.PSObject.Properties
-    $count = 0
     $total = @($extensions).Count
     
-    Write-Info "Adicionando extensões ao Registry..."
+    Write-Info "Este método vai abrir cada extensão em cada perfil."
+    Write-Warning "Você precisará clicar 'Usar no Chrome' para cada combinação."
     Write-Host ""
     
-    foreach ($ext in $extensions) {
-        $extName = $ext.Name
-        $extId = $ext.Value
+    foreach ($profile in $profiles) {
+        Write-Host "📁 Perfil: $($profile.Name)" -ForegroundColor Yellow
         
-        # Create key for this extension
-        $extKeyPath = Join-Path $registryPath $extId
+        # Get the profile directory name (e.g., "Default" or "Profile 1")
+        $profileDir = Split-Path $profile.Path -Leaf
         
-        if (-not (Test-Path $extKeyPath)) {
-            New-Item -Path $extKeyPath -Force | Out-Null
+        $count = 0
+        foreach ($ext in $extensions) {
+            $extName = $ext.Name
+            $extId = $ext.Value
+            $url = "https://chrome.google.com/webstore/detail/$extId"
+            
+            $count++
+            Write-Host "   📦 [$count/$total] $extName" -ForegroundColor Cyan
+            
+            # Open Chrome with specific profile
+            Start-Process "chrome.exe" -ArgumentList "--profile-directory=`"$profileDir`"", $url
+            Start-Sleep -Milliseconds 2000
         }
         
-        # Set update_url value
-        Set-ItemProperty -Path $extKeyPath -Name "update_url" -Value "https://clients2.google.com/service/update2/crx"
-        
-        $count++
-        Write-Host "   📦 [$count/$total] $extName" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Warning "Instale as extensões neste perfil, depois pressione ENTER para continuar..."
+        Read-Host
     }
     
     Write-Host ""
-    Write-Success "Adicionadas $count extensões ao Registry"
-    Write-Host ""
-    Write-Info "📋 O que acontece agora:"
-    Write-Host "   1. Feche TODAS as janelas do Chrome (inclusive a do system tray)" -ForegroundColor Gray
-    Write-Host "   2. Reabra o Chrome" -ForegroundColor Gray
-    Write-Host "   3. Um popup vai aparecer perguntando se deseja habilitar cada extensão" -ForegroundColor Gray
-    Write-Host "   4. Clique em 'Habilitar extensão' para cada uma" -ForegroundColor Gray
-    Write-Host ""
-    Write-Warning "Nota: Extensões já instaladas serão ignoradas automaticamente."
-    Write-Warning "Nota: Se o usuário desinstalar a extensão manualmente, ela não será reinstalada."
+    Write-Success "Processo de instalação concluído para todos os perfis!"
 }
 
 function Open-ExtensionInstallPages {
@@ -354,8 +338,30 @@ function Block-Extensions {
     
     Write-Step "Verificando extensões bloqueadas para: $ProfileName"
     
+    # Check if extensions are force-installed by corporate policy
+    $forcelistPath = "HKLM:\Software\Policies\Google\Chrome\ExtensionInstallForcelist"
+    $forcedExtensions = @()
+    
+    if (Test-Path $forcelistPath) {
+        try {
+            $forcelistValues = Get-ItemProperty $forcelistPath -ErrorAction SilentlyContinue
+            $forcelistValues.PSObject.Properties | Where-Object { $_.Name -match '^\d+$' } | ForEach-Object {
+                $forcedExtensions += ($_.Value -split ';')[0]
+            }
+        } catch { }
+    }
+    
     foreach ($blocked in $Config.blockedExtensions) {
         $extensionPath = Join-Path $ProfilePath "Extensions\$($blocked.id)"
+        
+        # Check if extension is force-installed by corporate policy
+        if ($forcedExtensions -contains $blocked.id) {
+            Write-Warning "⚠️ $($blocked.name) está na ExtensionInstallForcelist corporativa!"
+            Write-Warning "   Esta extensão é FORÇADA pela política da empresa."
+            Write-Warning "   Não é possível bloqueá-la. Contate o time de TI."
+            Write-Host ""
+            continue
+        }
         
         if (-not (Test-Path $extensionPath)) {
             Write-Info "Extensão $($blocked.name) não encontrada neste perfil"
@@ -506,12 +512,12 @@ function Main {
     # Show summary
     Show-Summary -Config $Config
     
-    # Install extensions via External Extensions method
+    # Install extensions
     if (-not $SkipExtensions) {
         Write-Host ""
         Write-Host "📦 Opções de Instalação de Extensões:" -ForegroundColor Yellow
-        Write-Host "   [1] External Extensions (recomendado - funciona para todos os perfis)" -ForegroundColor White
-        Write-Host "   [2] Abrir páginas da Chrome Web Store (instalação manual)" -ForegroundColor White
+        Write-Host "   [1] Instalar em TODOS os perfis (abre Chrome Web Store para cada perfil)" -ForegroundColor White
+        Write-Host "   [2] Instalar apenas no perfil ATIVO (abre Chrome Web Store uma vez)" -ForegroundColor White
         Write-Host "   [3] Pular instalação de extensões" -ForegroundColor White
         Write-Host ""
         $response = Read-Host "Escolha uma opção (1/2/3)"
