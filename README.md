@@ -2,7 +2,7 @@
 
 Coleção de scripts para automação de tarefas de desenvolvimento e configuração de ambiente.
 
-[🇺🇸 English Version](.english-version/)
+[🇺🇸 English Version](_english-version/)
 
 ## 📁 Estrutura
 
@@ -12,7 +12,7 @@ Coleção de scripts para automação de tarefas de desenvolvimento e configura�
 | [docker/](docker/) | Scripts para instalação do Docker Engine |
 | [oh-my-posh/](oh-my-posh/) | Scripts para instalação e configuração do Oh My Posh |
 | [ssh/](ssh/) | Scripts para geração de chaves SSH |
-| [.english-version/](.english-version/) | Versão em inglês de todos os scripts |
+| [_english-version/](_english-version/) | Versão em inglês de todos os scripts |
 
 ## 🚀 Início Rápido
 

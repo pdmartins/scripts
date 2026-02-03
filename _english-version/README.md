@@ -18,7 +18,7 @@ Collection of scripts for development task automation and environment configurat
 ### Clone the repository
 ```bash
 git clone https://github.com/pdmartins/scripts.git
-cd scripts/.english-version
+cd scripts/_english-version
 ```
 
 ### Run scripts on Windows (PowerShell)
