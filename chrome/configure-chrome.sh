@@ -373,6 +373,76 @@ set_chrome_preferences() {
     fi
 }
 
+install_external_extensions() {
+    local os="$1"
+    
+    print_step "Installing extensions via External Extensions method..."
+    
+    # Determine external extensions path based on OS
+    local ext_path
+    case "$os" in
+        linux)
+            # For Linux: system-wide or user-specific
+            ext_path="/usr/share/google-chrome/extensions"
+            if [[ ! -w "/usr/share/google-chrome" ]]; then
+                # Try user-specific location
+                ext_path="$HOME/.config/google-chrome/External Extensions"
+            fi
+            ;;
+        macos)
+            # For macOS: Library location
+            ext_path="/Library/Application Support/Google/Chrome/External Extensions"
+            if [[ ! -w "/Library/Application Support/Google/Chrome" ]]; then
+                ext_path="$HOME/Library/Application Support/Google/Chrome/External Extensions"
+            fi
+            ;;
+    esac
+    
+    # Create directory if needed
+    if [[ ! -d "$ext_path" ]]; then
+        mkdir -p "$ext_path" 2>/dev/null || {
+            print_warning "Cannot create $ext_path - need sudo?"
+            print_info "Trying with sudo..."
+            sudo mkdir -p "$ext_path"
+            sudo chmod 755 "$ext_path"
+        }
+    fi
+    
+    print_info "External extensions path: $ext_path"
+    echo ""
+    
+    local count=0
+    local total
+    total=$(jq '.extensions | length' "$CONFIG_FILE")
+    
+    # Get extensions from config and create JSON files
+    jq -r '.extensions | to_entries[] | "\(.key)|\(.value)"' "$CONFIG_FILE" | while IFS='|' read -r ext_name ext_id; do
+        local json_file="$ext_path/$ext_id.json"
+        local json_content='{"external_update_url": "https://clients2.google.com/service/update2/crx"}'
+        
+        ((count++)) || true
+        echo -e "   ${CYAN}📦 [$count/$total] $ext_name${NC}"
+        
+        # Write JSON file (may need sudo)
+        if [[ -w "$ext_path" ]]; then
+            echo "$json_content" > "$json_file"
+        else
+            echo "$json_content" | sudo tee "$json_file" > /dev/null
+        fi
+    done
+    
+    echo ""
+    print_success "Created external extension files"
+    echo ""
+    print_info "📋 What happens next:"
+    echo "   1. Close and reopen Chrome"
+    echo "   2. Chrome will detect the new extensions"
+    echo "   3. A popup will appear asking to enable each extension"
+    echo "   4. Click 'Enable' for each one"
+    echo ""
+    print_warning "Note: Extensions already installed will be skipped automatically."
+}
+
 open_extension_pages() {
     local os="$1"
     local chrome_binary="$2"
@@ -529,16 +599,28 @@ main() {
     # Show summary
     show_summary
     
-    # Open extension installation pages
+    # Install extensions
     if [[ "$SKIP_EXTENSIONS" == "false" ]]; then
         echo ""
-        read -p "Open extension installation pages now? (y/n) " -n 1 -r
+        echo -e "${YELLOW}📦 Extension Installation Options:${NC}"
+        echo "   [1] External Extensions (recommended - works for all profiles)"
+        echo "   [2] Open Chrome Web Store pages (manual install)"
+        echo "   [3] Skip extension installation"
         echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            open_extension_pages "$os" "$chrome_binary"
-        else
-            print_info "You can install extensions later by running with --skip-settings"
-        fi
+        read -p "Choose option (1/2/3): " -n 1 -r choice
+        echo ""
+        
+        case "$choice" in
+            1)
+                install_external_extensions "$os"
+                ;;
+            2)
+                open_extension_pages "$os" "$chrome_binary"
+                ;;
+            *)
+                print_info "Skipping extension installation. You can run again later."
+                ;;
+        esac
     fi
     
     echo ""

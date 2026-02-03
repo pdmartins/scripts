@@ -105,7 +105,31 @@ Configured in `config.json`:
 - EditThisCookie
 - Requestly
 
-### 🛡️ Blocked Extensions (Windows Only)
+### � Extension Installation Methods
+
+The script offers two methods to install extensions:
+
+#### 1. External Extensions (Recommended)
+
+- Creates JSON files that Chrome detects on startup
+- **Advantage**: Works for ALL profiles automatically
+- Chrome shows a popup asking to enable each extension
+- Already installed extensions are ignored (safe to run multiple times)
+
+**Where files are created:**
+| OS | Path |
+|----|------|
+| Windows | `%LOCALAPPDATA%\Google\Chrome\Application\` |
+| Linux | `/usr/share/google-chrome/extensions/` or `~/.config/google-chrome/External Extensions/` |
+| macOS | `/Library/Application Support/Google/Chrome/External Extensions/` |
+
+#### 2. Chrome Web Store (Manual)
+
+- Opens Web Store pages for each extension
+- **Disadvantage**: Installs only in the ACTIVE profile
+- Requires clicking "Add to Chrome" for each extension
+
+### �🛡️ Blocked Extensions (Windows Only)
 
 Configured in `blockedExtensions` in `config.json`. By default:
 - Microsoft Purview (`echcggldkblhodogklpincgchnpgcdco`)

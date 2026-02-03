@@ -1,6 +1,6 @@
 # ============================================================================
 # Script: configure-chrome.ps1
-# Description: Configures Google Chrome security, privacy, and extensions
+# Description: Configura segurança, privacidade e extensões do Google Chrome
 # ============================================================================
 
 param(
@@ -172,7 +172,7 @@ function Set-ChromePreferences {
     
     $settings = $Config.settings
     
-    # Cookies and Tracking
+    # Cookies e Tracking
     Write-Info "Configuring cookies and tracking..."
     $prefs["profile"]["default_content_setting_values"] = @{ "cookies" = 1 }
     $prefs["profile"]["block_third_party_cookies"] = $settings.cookies.blockThirdParty
@@ -254,6 +254,56 @@ function Set-ChromePreferences {
     } catch {
         Write-Error "Failed to save preferences: $_"
     }
+}
+
+function Install-ExternalExtensions {
+    param([object]$Config)
+    
+    Write-Step "Installing extensions via External Extensions method..."
+    
+    # External extensions path for Windows
+    # Chrome checks this folder on startup and prompts user to install
+    $chromeAppPath = "$env:LOCALAPPDATA\Google\Chrome\Application"
+    
+    # Create Application folder if it doesn't exist
+    if (-not (Test-Path $chromeAppPath)) {
+        New-Item -Path $chromeAppPath -ItemType Directory -Force | Out-Null
+    }
+    
+    $extensions = $Config.extensions.PSObject.Properties
+    $count = 0
+    $total = @($extensions).Count
+    
+    Write-Info "Creating external extension files..."
+    Write-Host ""
+    
+    foreach ($ext in $extensions) {
+        $extName = $ext.Name
+        $extId = $ext.Value
+        
+        # Create individual JSON file for each extension
+        $extJsonPath = Join-Path $chromeAppPath "$extId.json"
+        
+        $extJson = @{
+            external_update_url = "https://clients2.google.com/service/update2/crx"
+        }
+        
+        $extJson | ConvertTo-Json | Set-Content $extJsonPath -Encoding UTF8
+        
+        $count++
+        Write-Host "   📦 [$count/$total] $extName" -ForegroundColor Cyan
+    }
+    
+    Write-Host ""
+    Write-Success "Created $count external extension files"
+    Write-Host ""
+    Write-Info "📋 What happens next:"
+    Write-Host "   1. Close and reopen Chrome" -ForegroundColor Gray
+    Write-Host "   2. Chrome will detect the new extensions" -ForegroundColor Gray
+    Write-Host "   3. A popup will appear asking to enable each extension" -ForegroundColor Gray
+    Write-Host "   4. Click 'Enable' for each one" -ForegroundColor Gray
+    Write-Host ""
+    Write-Warning "Note: Extensions already installed will be skipped automatically."
 }
 
 function Open-ExtensionInstallPages {
@@ -438,14 +488,26 @@ function Main {
     # Show summary
     Show-Summary -Config $Config
     
-    # Open extension installation pages
+    # Install extensions via External Extensions method
     if (-not $SkipExtensions) {
         Write-Host ""
-        $response = Read-Host "Open extension installation pages now? (y/n)"
-        if ($response -eq "y" -or $response -eq "Y") {
-            Open-ExtensionInstallPages -Config $Config
-        } else {
-            Write-Info "You can install extensions later by running with -SkipSettings"
+        Write-Host "📦 Extension Installation Options:" -ForegroundColor Yellow
+        Write-Host "   [1] External Extensions (recommended - works for all profiles)" -ForegroundColor White
+        Write-Host "   [2] Open Chrome Web Store pages (manual install)" -ForegroundColor White
+        Write-Host "   [3] Skip extension installation" -ForegroundColor White
+        Write-Host ""
+        $response = Read-Host "Choose option (1/2/3)"
+        
+        switch ($response) {
+            "1" {
+                Install-ExternalExtensions -Config $Config
+            }
+            "2" {
+                Open-ExtensionInstallPages -Config $Config
+            }
+            default {
+                Write-Info "Skipping extension installation. You can run again later."
+            }
         }
     }
     
