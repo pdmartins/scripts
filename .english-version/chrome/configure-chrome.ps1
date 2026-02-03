@@ -259,51 +259,60 @@ function Set-ChromePreferences {
 function Install-ExternalExtensions {
     param([object]$Config)
     
-    Write-Step "Installing extensions via External Extensions method..."
+    Write-Step "Installing extensions via Registry (External Extensions)..."
     
-    # External extensions path for Windows
-    # Chrome checks this folder on startup and prompts user to install
-    $chromeAppPath = "$env:LOCALAPPDATA\Google\Chrome\Application"
+    # Windows uses Registry, not JSON files
+    # 64-bit path (also works for 32-bit Chrome on 64-bit Windows)
+    $registryPath = "HKLM:\Software\Google\Chrome\Extensions"
     
-    # Create Application folder if it doesn't exist
-    if (-not (Test-Path $chromeAppPath)) {
-        New-Item -Path $chromeAppPath -ItemType Directory -Force | Out-Null
+    # Check if running as admin
+    if (-not (Test-Administrator)) {
+        Write-Warning "Need to run as Administrator to add to HKLM Registry."
+        Write-Info "Trying HKCU (current user only)..."
+        $registryPath = "HKCU:\Software\Google\Chrome\Extensions"
+    }
+    
+    # Create Extensions key if it doesn't exist
+    if (-not (Test-Path $registryPath)) {
+        New-Item -Path $registryPath -Force | Out-Null
     }
     
     $extensions = $Config.extensions.PSObject.Properties
     $count = 0
     $total = @($extensions).Count
     
-    Write-Info "Creating external extension files..."
+    Write-Info "Adding extensions to Registry..."
     Write-Host ""
     
     foreach ($ext in $extensions) {
         $extName = $ext.Name
         $extId = $ext.Value
         
-        # Create individual JSON file for each extension
-        $extJsonPath = Join-Path $chromeAppPath "$extId.json"
+        # Create key for this extension
+        $extKeyPath = Join-Path $registryPath $extId
         
-        $extJson = @{
-            external_update_url = "https://clients2.google.com/service/update2/crx"
+        if (-not (Test-Path $extKeyPath)) {
+            New-Item -Path $extKeyPath -Force | Out-Null
         }
         
-        $extJson | ConvertTo-Json | Set-Content $extJsonPath -Encoding UTF8
+        # Set update_url value
+        Set-ItemProperty -Path $extKeyPath -Name "update_url" -Value "https://clients2.google.com/service/update2/crx"
         
         $count++
         Write-Host "   📦 [$count/$total] $extName" -ForegroundColor Cyan
     }
     
     Write-Host ""
-    Write-Success "Created $count external extension files"
+    Write-Success "Added $count extensions to Registry"
     Write-Host ""
     Write-Info "📋 What happens next:"
-    Write-Host "   1. Close and reopen Chrome" -ForegroundColor Gray
-    Write-Host "   2. Chrome will detect the new extensions" -ForegroundColor Gray
+    Write-Host "   1. Close ALL Chrome windows (including system tray)" -ForegroundColor Gray
+    Write-Host "   2. Reopen Chrome" -ForegroundColor Gray
     Write-Host "   3. A popup will appear asking to enable each extension" -ForegroundColor Gray
-    Write-Host "   4. Click 'Enable' for each one" -ForegroundColor Gray
+    Write-Host "   4. Click 'Enable extension' for each one" -ForegroundColor Gray
     Write-Host ""
-    Write-Warning "Note: Extensions already installed will be skipped automatically."
+    Write-Warning "Note: Already installed extensions will be skipped automatically."
+    Write-Warning "Note: If user uninstalls an extension manually, it won't be reinstalled."
 }
 
 function Open-ExtensionInstallPages {
@@ -350,6 +359,15 @@ function Block-Extensions {
         
         if (-not (Test-Path $extensionPath)) {
             Write-Info "$($blocked.name) extension not found in this profile"
+            continue
+        }
+        
+        # Check if already blocked by trying to access it
+        try {
+            $testAccess = Get-ChildItem -Path $extensionPath -ErrorAction Stop
+        } catch {
+            # If we can't access, it's already blocked
+            Write-Success "$($blocked.name) extension is already blocked"
             continue
         }
         

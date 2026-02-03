@@ -66,18 +66,18 @@ function Get-Configuration {
     }
     
     if (-not (Test-Path $ConfigPath)) {
-        Write-Error "Configuration file not found: $ConfigPath"
+        Write-Error "Arquivo de configuração não encontrado: $ConfigPath"
         exit 1
     }
     
-    Write-Info "Loading configuration from: $ConfigPath"
+    Write-Info "Carregando configuração de: $ConfigPath"
     
     try {
         $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-        Write-Success "Configuration loaded successfully"
+        Write-Success "Configuração carregada com sucesso"
         return $config
     } catch {
-        Write-Error "Failed to parse configuration file: $_"
+        Write-Error "Falha ao analisar arquivo de configuração: $_"
         exit 1
     }
 }
@@ -87,10 +87,10 @@ function Get-Configuration {
 # ============================================================================
 
 function Get-ChromeProfiles {
-    Write-Info "Detecting Chrome profiles..."
+    Write-Info "Detectando perfis do Chrome..."
     
     if (-not (Test-Path $ChromeLocalAppData)) {
-        Write-Error "Chrome User Data folder not found: $ChromeLocalAppData"
+        Write-Error "Pasta User Data do Chrome não encontrada: $ChromeLocalAppData"
         return @()
     }
     
@@ -128,7 +128,7 @@ function Get-ChromeProfiles {
         }
     }
     
-    Write-Success "Found $($profiles.Count) profile(s)"
+    Write-Success "Encontrados $($profiles.Count) perfil(s)"
     foreach ($profile in $profiles) {
         Write-Host "   📁 $($profile.Name)" -ForegroundColor Gray
     }
@@ -143,19 +143,19 @@ function Set-ChromePreferences {
         [object]$Config
     )
     
-    Write-Step "Configuring preferences for: $ProfileName"
+    Write-Step "Configurando preferências para: $ProfileName"
     
     $prefsFile = Join-Path $ProfilePath "Preferences"
     $downloadPath = $Config.downloadPath.windows
     
     if (-not (Test-Path $prefsFile)) {
-        Write-Warning "Preferences file not found, creating new..."
+        Write-Warning "Arquivo de preferências não encontrado, criando novo..."
         $prefs = @{}
     } else {
         try {
             $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json -AsHashtable
         } catch {
-            Write-Warning "Could not parse Preferences, creating backup and new file..."
+            Write-Warning "Não foi possível analisar Preferências, criando backup e novo arquivo..."
             Copy-Item $prefsFile "$prefsFile.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
             $prefs = @{}
         }
@@ -173,7 +173,7 @@ function Set-ChromePreferences {
     $settings = $Config.settings
     
     # Cookies e Tracking
-    Write-Info "Configuring cookies and tracking..."
+    Write-Info "Configurando cookies e rastreamento..."
     $prefs["profile"]["default_content_setting_values"] = @{ "cookies" = 1 }
     $prefs["profile"]["block_third_party_cookies"] = $settings.cookies.blockThirdParty
     $prefs["profile"]["cookie_controls_mode"] = $settings.cookies.cookieControlsMode
@@ -193,7 +193,7 @@ function Set-ChromePreferences {
     $prefs["privacy_sandbox"]["apis_enabled_v2"] = $settings.privacySandbox.apisEnabled
     
     # Autofill
-    Write-Info "Disabling autofill..."
+    Write-Info "Desabilitando preenchimento automático..."
     $prefs["autofill"]["profile_enabled"] = $settings.autofill.profileEnabled
     $prefs["autofill"]["credit_card_enabled"] = $settings.autofill.creditCardEnabled
     $prefs["credentials_enable_service"] = $settings.autofill.passwordManagerEnabled
@@ -201,7 +201,7 @@ function Set-ChromePreferences {
     $prefs["payments"]["can_make_payment_enabled"] = $settings.autofill.paymentsEnabled
     
     # Other settings
-    Write-Info "Configuring other settings..."
+    Write-Info "Configurando outras opções..."
     $prefs["search"]["suggest_enabled"] = $settings.search.suggestEnabled
     $prefs["net"]["network_prediction_options"] = $settings.network.predictionOptions
     $prefs["alternate_error_pages"] = @{ "enabled" = $false }
@@ -215,21 +215,21 @@ function Set-ChromePreferences {
     if (-not (Test-Path $downloadPath)) {
         try {
             New-Item -Path $downloadPath -ItemType Directory -Force | Out-Null
-            Write-Success "Created download folder: $downloadPath"
+            Write-Success "Pasta de downloads criada: $downloadPath"
         } catch {
-            Write-Warning "Could not create download folder: $downloadPath"
+            Write-Warning "Não foi possível criar pasta de downloads: $downloadPath"
         }
     }
     
     # Languages
-    Write-Info "Configuring languages..."
+    Write-Info "Configurando idiomas..."
     $prefs["intl"]["accept_languages"] = $settings.languages.acceptLanguages
     $prefs["intl"]["selected_languages"] = $settings.languages.selectedLanguages
     $prefs["spellcheck"]["dictionaries"] = @($settings.languages.spellcheckDictionaries)
     $prefs["spellcheck"]["use_spelling_service"] = $settings.languages.useSpellingService
     
     # Performance
-    Write-Info "Configuring performance..."
+    Write-Info "Configurando performance..."
     if (-not $prefs["performance_tuning"].ContainsKey("high_efficiency_mode")) {
         $prefs["performance_tuning"]["high_efficiency_mode"] = @{}
     }
@@ -247,74 +247,83 @@ function Set-ChromePreferences {
     try {
         $chromeProcesses = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
         if ($chromeProcesses) {
-            Write-Warning "Chrome is running. Please close Chrome to apply settings."
+            Write-Warning "Chrome está em execução. Feche o Chrome para aplicar as configurações."
         }
         $prefs | ConvertTo-Json -Depth 20 | Set-Content $prefsFile -Encoding UTF8
-        Write-Success "Preferences saved for $ProfileName"
+        Write-Success "Preferências salvas para $ProfileName"
     } catch {
-        Write-Error "Failed to save preferences: $_"
+        Write-Error "Falha ao salvar preferências: $_"
     }
 }
 
 function Install-ExternalExtensions {
     param([object]$Config)
     
-    Write-Step "Installing extensions via External Extensions method..."
+    Write-Step "Instalando extensões via Registry (External Extensions)..."
     
-    # External extensions path for Windows
-    # Chrome checks this folder on startup and prompts user to install
-    $chromeAppPath = "$env:LOCALAPPDATA\Google\Chrome\Application"
+    # Windows uses Registry, not JSON files
+    # 64-bit path (also works for 32-bit Chrome on 64-bit Windows)
+    $registryPath = "HKLM:\Software\Google\Chrome\Extensions"
     
-    # Create Application folder if it doesn't exist
-    if (-not (Test-Path $chromeAppPath)) {
-        New-Item -Path $chromeAppPath -ItemType Directory -Force | Out-Null
+    # Check if running as admin
+    if (-not (Test-Administrator)) {
+        Write-Warning "Precisa executar como Administrador para adicionar ao Registry."
+        Write-Info "Tentando usar HKCU (apenas para o usuário atual)..."
+        $registryPath = "HKCU:\Software\Google\Chrome\Extensions"
+    }
+    
+    # Create Extensions key if it doesn't exist
+    if (-not (Test-Path $registryPath)) {
+        New-Item -Path $registryPath -Force | Out-Null
     }
     
     $extensions = $Config.extensions.PSObject.Properties
     $count = 0
     $total = @($extensions).Count
     
-    Write-Info "Creating external extension files..."
+    Write-Info "Adicionando extensões ao Registry..."
     Write-Host ""
     
     foreach ($ext in $extensions) {
         $extName = $ext.Name
         $extId = $ext.Value
         
-        # Create individual JSON file for each extension
-        $extJsonPath = Join-Path $chromeAppPath "$extId.json"
+        # Create key for this extension
+        $extKeyPath = Join-Path $registryPath $extId
         
-        $extJson = @{
-            external_update_url = "https://clients2.google.com/service/update2/crx"
+        if (-not (Test-Path $extKeyPath)) {
+            New-Item -Path $extKeyPath -Force | Out-Null
         }
         
-        $extJson | ConvertTo-Json | Set-Content $extJsonPath -Encoding UTF8
+        # Set update_url value
+        Set-ItemProperty -Path $extKeyPath -Name "update_url" -Value "https://clients2.google.com/service/update2/crx"
         
         $count++
         Write-Host "   📦 [$count/$total] $extName" -ForegroundColor Cyan
     }
     
     Write-Host ""
-    Write-Success "Created $count external extension files"
+    Write-Success "Adicionadas $count extensões ao Registry"
     Write-Host ""
-    Write-Info "📋 What happens next:"
-    Write-Host "   1. Close and reopen Chrome" -ForegroundColor Gray
-    Write-Host "   2. Chrome will detect the new extensions" -ForegroundColor Gray
-    Write-Host "   3. A popup will appear asking to enable each extension" -ForegroundColor Gray
-    Write-Host "   4. Click 'Enable' for each one" -ForegroundColor Gray
+    Write-Info "📋 O que acontece agora:"
+    Write-Host "   1. Feche TODAS as janelas do Chrome (inclusive a do system tray)" -ForegroundColor Gray
+    Write-Host "   2. Reabra o Chrome" -ForegroundColor Gray
+    Write-Host "   3. Um popup vai aparecer perguntando se deseja habilitar cada extensão" -ForegroundColor Gray
+    Write-Host "   4. Clique em 'Habilitar extensão' para cada uma" -ForegroundColor Gray
     Write-Host ""
-    Write-Warning "Note: Extensions already installed will be skipped automatically."
+    Write-Warning "Nota: Extensões já instaladas serão ignoradas automaticamente."
+    Write-Warning "Nota: Se o usuário desinstalar a extensão manualmente, ela não será reinstalada."
 }
 
 function Open-ExtensionInstallPages {
     param([object]$Config)
     
-    Write-Step "Opening extension installation pages..."
+    Write-Step "Abrindo páginas de instalação de extensões..."
     
     $extensions = $Config.extensions.PSObject.Properties
     
-    Write-Info "Extensions will be opened in Chrome for installation."
-    Write-Warning "Please click 'Add to Chrome' for each extension."
+    Write-Info "As extensões serão abertas no Chrome para instalação."
+    Write-Warning "Clique em 'Usar no Chrome' para cada extensão."
     Write-Host ""
     
     $count = 0
@@ -332,8 +341,8 @@ function Open-ExtensionInstallPages {
     }
     
     Write-Host ""
-    Write-Success "Opened all $count extension pages in Chrome"
-    Write-Info "Install each extension by clicking 'Add to Chrome'"
+    Write-Success "Abertas $count páginas de extensões no Chrome"
+    Write-Info "Instale cada extensão clicando em 'Usar no Chrome'"
 }
 
 function Block-Extensions {
@@ -343,21 +352,30 @@ function Block-Extensions {
         [object]$Config
     )
     
-    Write-Step "Checking blocked extensions for: $ProfileName"
+    Write-Step "Verificando extensões bloqueadas para: $ProfileName"
     
     foreach ($blocked in $Config.blockedExtensions) {
         $extensionPath = Join-Path $ProfilePath "Extensions\$($blocked.id)"
         
         if (-not (Test-Path $extensionPath)) {
-            Write-Info "$($blocked.name) extension not found in this profile"
+            Write-Info "Extensão $($blocked.name) não encontrada neste perfil"
             continue
         }
         
-        Write-Warning "$($blocked.name) extension found! Blocking..."
+        # Check if already blocked by trying to access it
+        try {
+            $testAccess = Get-ChildItem -Path $extensionPath -ErrorAction Stop
+        } catch {
+            # If we can't access, it's already blocked
+            Write-Success "Extensão $($blocked.name) já está bloqueada"
+            continue
+        }
+        
+        Write-Warning "Extensão $($blocked.name) encontrada! Bloqueando..."
         
         try {
             Get-ChildItem -Path $extensionPath -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
-            Write-Info "Removed extension content"
+            Write-Info "Conteúdo da extensão removido"
             
             $acl = Get-Acl $extensionPath
             $acl.SetAccessRuleProtection($true, $false)
@@ -378,9 +396,9 @@ function Block-Extensions {
             $acl.AddAccessRule($denyRule)
             Set-Acl -Path $extensionPath -AclObject $acl
             
-            Write-Success "Blocked $($blocked.name) extension folder with Deny ALL for Everyone"
+            Write-Success "Pasta da extensão $($blocked.name) bloqueada com Deny ALL para Everyone"
         } catch {
-            Write-Error "Failed to block $($blocked.name) extension: $_"
+            Write-Error "Falha ao bloquear extensão $($blocked.name): $_"
         }
     }
 }
@@ -388,30 +406,30 @@ function Block-Extensions {
 function Show-Summary {
     param([object]$Config)
     
-    Write-Step "Configuration Summary"
+    Write-Step "Resumo da Configuração"
     
     $settings = $Config.settings
     $downloadPath = $Config.downloadPath.windows
     
     Write-Host ""
-    Write-Host "📋 Settings Applied:" -ForegroundColor White
-    Write-Host "   ├─ Block third-party cookies: $($settings.cookies.blockThirdParty)" -ForegroundColor Gray
+    Write-Host "📋 Configurações Aplicadas:" -ForegroundColor White
+    Write-Host "   ├─ Bloquear cookies de terceiros: $($settings.cookies.blockThirdParty)" -ForegroundColor Gray
     Write-Host "   ├─ Do Not Track: $($settings.tracking.doNotTrack)" -ForegroundColor Gray
-    Write-Host "   ├─ Telemetry/Metrics: $($settings.tracking.metricsEnabled)" -ForegroundColor Gray
+    Write-Host "   ├─ Telemetria/Métricas: $($settings.tracking.metricsEnabled)" -ForegroundColor Gray
     Write-Host "   ├─ Safe Browsing: $($settings.safeBrowsing.enabled)" -ForegroundColor Gray
     Write-Host "   ├─ Privacy Sandbox APIs: $($settings.privacySandbox.apisEnabled)" -ForegroundColor Gray
-    Write-Host "   ├─ Autofill: $($settings.autofill.profileEnabled)" -ForegroundColor Gray
-    Write-Host "   ├─ Password Manager: $($settings.autofill.passwordManagerEnabled)" -ForegroundColor Gray
-    Write-Host "   ├─ Search suggestions: $($settings.search.suggestEnabled)" -ForegroundColor Gray
-    Write-Host "   ├─ Downloads: Always ask, default $downloadPath" -ForegroundColor Gray
-    Write-Host "   ├─ Languages: $($settings.languages.acceptLanguages)" -ForegroundColor Gray
-    Write-Host "   ├─ Memory Saver: State $($settings.performance.highEfficiencyModeState)" -ForegroundColor Gray
-    Write-Host "   ├─ Hardware acceleration: $($settings.performance.hardwareAccelerationEnabled)" -ForegroundColor Gray
-    Write-Host "   └─ Background apps: $($settings.performance.backgroundModeEnabled)" -ForegroundColor Gray
+    Write-Host "   ├─ Preenchimento automático: $($settings.autofill.profileEnabled)" -ForegroundColor Gray
+    Write-Host "   ├─ Gerenciador de senhas: $($settings.autofill.passwordManagerEnabled)" -ForegroundColor Gray
+    Write-Host "   ├─ Sugestões de pesquisa: $($settings.search.suggestEnabled)" -ForegroundColor Gray
+    Write-Host "   ├─ Downloads: Sempre perguntar, padrão $downloadPath" -ForegroundColor Gray
+    Write-Host "   ├─ Idiomas: $($settings.languages.acceptLanguages)" -ForegroundColor Gray
+    Write-Host "   ├─ Economia de memória: Estado $($settings.performance.highEfficiencyModeState)" -ForegroundColor Gray
+    Write-Host "   ├─ Aceleração de hardware: $($settings.performance.hardwareAccelerationEnabled)" -ForegroundColor Gray
+    Write-Host "   └─ Apps em background: $($settings.performance.backgroundModeEnabled)" -ForegroundColor Gray
     Write-Host ""
     
     if (-not $SkipExtensions) {
-        Write-Host "📦 Extensions to install:" -ForegroundColor White
+        Write-Host "📦 Extensões a instalar:" -ForegroundColor White
         foreach ($ext in $Config.extensions.PSObject.Properties) {
             Write-Host "   ├─ $($ext.Name)" -ForegroundColor Gray
         }
@@ -419,7 +437,7 @@ function Show-Summary {
     }
     
     if (-not $SkipBlockedExtensions -and $Config.blockedExtensions.Count -gt 0) {
-        Write-Host "🚫 Blocked extensions:" -ForegroundColor White
+        Write-Host "🚫 Extensões bloqueadas:" -ForegroundColor White
         foreach ($blocked in $Config.blockedExtensions) {
             Write-Host "   ├─ $($blocked.name) ($($blocked.id))" -ForegroundColor Gray
         }
@@ -434,7 +452,7 @@ function Show-Summary {
 function Main {
     Write-Host ""
     Write-Host "╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "║     🔒 Chrome Security & Privacy Configuration Tool          ║" -ForegroundColor Cyan
+    Write-Host "║   🔒 Ferramenta de Configuração de Segurança e Privacidade     ║" -ForegroundColor Cyan
     Write-Host "╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
     Write-Host ""
     
@@ -443,23 +461,23 @@ function Main {
     
     # Check for admin rights
     if (-not $SkipBlockedExtensions -and -not (Test-Administrator)) {
-        Write-Warning "Running without admin privileges."
-        Write-Warning "Extension blocking may fail. Run as admin for full functionality."
+        Write-Warning "Executando sem privilégios de administrador."
+        Write-Warning "O bloqueio de extensões pode falhar. Execute como admin para funcionalidade completa."
         Write-Host ""
     }
     
     # Check if Chrome is running
     $chromeProcesses = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
     if ($chromeProcesses -and -not $Force) {
-        Write-Warning "Chrome is currently running!"
+        Write-Warning "Chrome está em execução!"
         Write-Host ""
-        $response = Read-Host "Close Chrome to continue? (y/n)"
-        if ($response -eq "y" -or $response -eq "Y") {
-            Write-Info "Closing Chrome..."
+        $response = Read-Host "Fechar o Chrome para continuar? (s/n)"
+        if ($response -eq "s" -or $response -eq "S" -or $response -eq "y" -or $response -eq "Y") {
+            Write-Info "Fechando Chrome..."
             Stop-Process -Name "chrome" -Force -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 2
         } else {
-            Write-Warning "Some settings may not be applied while Chrome is running."
+            Write-Warning "Algumas configurações podem não ser aplicadas enquanto o Chrome estiver em execução."
         }
     }
     
@@ -467,7 +485,7 @@ function Main {
     $profiles = Get-ChromeProfiles
     
     if ($profiles.Count -eq 0) {
-        Write-Error "No Chrome profiles found!"
+        Write-Error "Nenhum perfil do Chrome encontrado!"
         exit 1
     }
     
@@ -491,12 +509,12 @@ function Main {
     # Install extensions via External Extensions method
     if (-not $SkipExtensions) {
         Write-Host ""
-        Write-Host "📦 Extension Installation Options:" -ForegroundColor Yellow
-        Write-Host "   [1] External Extensions (recommended - works for all profiles)" -ForegroundColor White
-        Write-Host "   [2] Open Chrome Web Store pages (manual install)" -ForegroundColor White
-        Write-Host "   [3] Skip extension installation" -ForegroundColor White
+        Write-Host "📦 Opções de Instalação de Extensões:" -ForegroundColor Yellow
+        Write-Host "   [1] External Extensions (recomendado - funciona para todos os perfis)" -ForegroundColor White
+        Write-Host "   [2] Abrir páginas da Chrome Web Store (instalação manual)" -ForegroundColor White
+        Write-Host "   [3] Pular instalação de extensões" -ForegroundColor White
         Write-Host ""
-        $response = Read-Host "Choose option (1/2/3)"
+        $response = Read-Host "Escolha uma opção (1/2/3)"
         
         switch ($response) {
             "1" {
@@ -506,15 +524,15 @@ function Main {
                 Open-ExtensionInstallPages -Config $Config
             }
             default {
-                Write-Info "Skipping extension installation. You can run again later."
+                Write-Info "Pulando instalação de extensões. Você pode executar novamente depois."
             }
         }
     }
     
     Write-Host ""
-    Write-Success "Configuration complete!"
+    Write-Success "Configuração concluída!"
     Write-Host ""
-    Write-Info "💡 Tip: Restart Chrome to apply all settings"
+    Write-Info "💡 Dica: Reinicie o Chrome para aplicar todas as configurações"
 }
 
 Main
