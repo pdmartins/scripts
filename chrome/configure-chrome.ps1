@@ -312,11 +312,15 @@ function Block-Extensions {
             $acl = Get-Acl $extensionPath
             $acl.SetAccessRuleProtection($true, $false)
             
+            # Use integer value for InheritanceFlags to avoid -bor operator issues
+            # ContainerInherit (1) + ObjectInherit (2) = 3
+            $inheritanceFlags = [System.Security.AccessControl.InheritanceFlags]3
+            
             $everyone = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
             $denyRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
                 $everyone,
                 [System.Security.AccessControl.FileSystemRights]::FullControl,
-                [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit,
+                $inheritanceFlags,
                 [System.Security.AccessControl.PropagationFlags]::None,
                 [System.Security.AccessControl.AccessControlType]::Deny
             )
