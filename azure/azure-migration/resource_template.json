@@ -1,0 +1,1020 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "accounts_sky_hubai_openai_name": {
+      "defaultValue": "sk-sky-hubai-openai",
+      "type": "String"
+    },
+    "serverfarms_sky_hubai_SP_name": {
+      "defaultValue": "sk-sky-hubai-SP",
+      "type": "String"
+    },
+    "sites_sky_hubai_hml_name": {
+      "defaultValue": "sk-sky-hubai-hml",
+      "type": "String"
+    },
+    "sites_sky_hubai_name": {
+      "defaultValue": "sk-sky-hubai",
+      "type": "String"
+    },
+    "userAssignedIdentities_oidc_msi_a895_name": {
+      "defaultValue": "sk-oidc-msi-a895",
+      "type": "String"
+    },
+    "userAssignedIdentities_sky_hubai_id_name": {
+      "defaultValue": "sk-sky-hubai-id",
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2025-06-01",
+      "kind": "OpenAI",
+      "location": "brazilsouth",
+      "name": "[parameters('accounts_sky_hubai_openai_name')]",
+      "properties": {
+        "allowProjectManagement": false,
+        "apiProperties": {},
+        "customSubDomainName": "[parameters('accounts_sky_hubai_openai_name')]",
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "ipRules": [],
+          "virtualNetworkRules": []
+        },
+        "publicNetworkAccess": "Enabled"
+      },
+      "sku": {
+        "name": "S0"
+      },
+      "type": "Microsoft.CognitiveServices/accounts"
+    },
+    {
+      "apiVersion": "2025-01-31-preview",
+      "location": "brazilsouth",
+      "name": "[parameters('userAssignedIdentities_oidc_msi_a895_name')]",
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
+    },
+    {
+      "apiVersion": "2025-01-31-preview",
+      "location": "brazilsouth",
+      "name": "[parameters('userAssignedIdentities_sky_hubai_id_name')]",
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "kind": "linux",
+      "location": "Brazil South",
+      "name": "[parameters('serverfarms_sky_hubai_SP_name')]",
+      "properties": {
+        "asyncScalingEnabled": false,
+        "elasticScaleEnabled": false,
+        "freeOfferExpirationTime": "2026-01-02T15:21:00",
+        "hyperV": false,
+        "isSpot": false,
+        "isXenon": false,
+        "maximumElasticWorkerCount": 1,
+        "perSiteScaling": false,
+        "reserved": true,
+        "targetWorkerCount": 0,
+        "targetWorkerSizeId": 0,
+        "zoneRedundant": false
+      },
+      "sku": {
+        "capacity": 1,
+        "family": "B",
+        "name": "B2",
+        "size": "B2",
+        "tier": "Basic"
+      },
+      "type": "Microsoft.Web/serverfarms"
+    },
+    {
+      "apiVersion": "2025-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_sky_hubai_openai_name'))]"
+      ],
+      "name": "[concat(parameters('accounts_sky_hubai_openai_name'), '/Default')]",
+      "properties": {
+        "state": "Disabled"
+      },
+      "type": "Microsoft.CognitiveServices/accounts/defenderForAISettings"
+    },
+    {
+      "apiVersion": "2025-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_sky_hubai_openai_name'))]"
+      ],
+      "name": "[concat(parameters('accounts_sky_hubai_openai_name'), '/gpt-4o')]",
+      "properties": {
+        "currentCapacity": 29216,
+        "model": {
+          "format": "OpenAI",
+          "name": "gpt-4o",
+          "version": "2024-11-20"
+        },
+        "raiPolicyName": "Microsoft.DefaultV2",
+        "versionUpgradeOption": "OnceNewDefaultVersionAvailable"
+      },
+      "sku": {
+        "capacity": 29216,
+        "name": "GlobalStandard"
+      },
+      "type": "Microsoft.CognitiveServices/accounts/deployments"
+    },
+    {
+      "apiVersion": "2025-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_sky_hubai_openai_name'))]"
+      ],
+      "name": "[concat(parameters('accounts_sky_hubai_openai_name'), '/Microsoft.Default')]",
+      "properties": {
+        "contentFilters": [
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Hate",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Hate",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Sexual",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Sexual",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Violence",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Violence",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Selfharm",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Selfharm",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          }
+        ],
+        "mode": "Blocking"
+      },
+      "type": "Microsoft.CognitiveServices/accounts/raiPolicies"
+    },
+    {
+      "apiVersion": "2025-06-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', parameters('accounts_sky_hubai_openai_name'))]"
+      ],
+      "name": "[concat(parameters('accounts_sky_hubai_openai_name'), '/Microsoft.DefaultV2')]",
+      "properties": {
+        "contentFilters": [
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Hate",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Hate",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Sexual",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Sexual",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Violence",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Violence",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Selfharm",
+            "severityThreshold": "Medium",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Selfharm",
+            "severityThreshold": "Medium",
+            "source": "Completion"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Jailbreak",
+            "source": "Prompt"
+          },
+          {
+            "blocking": true,
+            "enabled": true,
+            "name": "Protected Material Text",
+            "source": "Completion"
+          },
+          {
+            "blocking": false,
+            "enabled": true,
+            "name": "Protected Material Code",
+            "source": "Completion"
+          }
+        ],
+        "mode": "Blocking"
+      },
+      "type": "Microsoft.CognitiveServices/accounts/raiPolicies"
+    },
+    {
+      "apiVersion": "2025-01-31-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('userAssignedIdentities_oidc_msi_a895_name'))]"
+      ],
+      "name": "[concat(parameters('userAssignedIdentities_oidc_msi_a895_name'), '/oidc-credential-a42a')]",
+      "properties": {
+        "audiences": [
+          "api://AzureADTokenExchange"
+        ],
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "repo:ava-client-brazil-sky/Sky.HubAI:ref:refs/heads/develop"
+      },
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+    },
+    {
+      "apiVersion": "2025-01-31-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('userAssignedIdentities_sky_hubai_id_name'))]"
+      ],
+      "name": "[concat(parameters('userAssignedIdentities_sky_hubai_id_name'), '/oidc-credential-bafb')]",
+      "properties": {
+        "audiences": [
+          "api://AzureADTokenExchange"
+        ],
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "repo:ava-client-brazil-sky/Sky.HubAI:ref:refs/heads/develop"
+      },
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+    },
+    {
+      "apiVersion": "2025-01-31-preview",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('userAssignedIdentities_sky_hubai_id_name'))]"
+      ],
+      "name": "[concat(parameters('userAssignedIdentities_sky_hubai_id_name'), '/sky-hubai-credential')]",
+      "properties": {
+        "audiences": [
+          "api://AzureADTokenExchange"
+        ],
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "repo:ava-client-brazil-sky/Sky.HubAI:ref:refs/heads/main"
+      },
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_sky_hubai_SP_name'))]"
+      ],
+      "kind": "app,linux",
+      "location": "Brazil South",
+      "name": "[parameters('sites_sky_hubai_name')]",
+      "properties": {
+        "autoGeneratedDomainNameLabelScope": "TenantReuse",
+        "clientAffinityEnabled": false,
+        "clientAffinityProxyEnabled": false,
+        "clientCertEnabled": false,
+        "clientCertMode": "Required",
+        "containerSize": 0,
+        "customDomainVerificationId": "9C8D0126DECDE3758854F57A2FED1AF085D559C569530A6AA8EB8AFC2C8DEC21",
+        "dailyMemoryTimeQuota": 0,
+        "dnsConfiguration": {},
+        "enabled": true,
+        "endToEndEncryptionEnabled": false,
+        "hostNameSslStates": [
+          {
+            "hostType": "Standard",
+            "name": "[concat(parameters('sites_sky_hubai_name'), '-bngqhfhva7cwgsfr.brazilsouth-01.azurewebsites.net')]",
+            "sslState": "Disabled"
+          },
+          {
+            "hostType": "Repository",
+            "name": "[concat(parameters('sites_sky_hubai_name'), '-bngqhfhva7cwgsfr.scm.brazilsouth-01.azurewebsites.net')]",
+            "sslState": "Disabled"
+          }
+        ],
+        "hostNamesDisabled": false,
+        "httpsOnly": true,
+        "hyperV": false,
+        "ipMode": "IPv4",
+        "isXenon": false,
+        "keyVaultReferenceIdentity": "SystemAssigned",
+        "outboundVnetRouting": {
+          "allTraffic": false,
+          "applicationTraffic": false,
+          "backupRestoreTraffic": false,
+          "contentShareTraffic": false,
+          "imagePullTraffic": false
+        },
+        "publicNetworkAccess": "Enabled",
+        "redundancyMode": "None",
+        "reserved": true,
+        "scmSiteAlsoStopped": false,
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_sky_hubai_SP_name'))]",
+        "siteConfig": {
+          "acrUseManagedIdentityCreds": false,
+          "alwaysOn": false,
+          "functionAppScaleLimit": 0,
+          "http20Enabled": false,
+          "linuxFxVersion": "DOTNETCORE|8.0",
+          "minimumElasticInstanceCount": 0,
+          "numberOfWorkers": 1
+        },
+        "storageAccountRequired": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai"
+      },
+      "type": "Microsoft.Web/sites"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_sky_hubai_SP_name'))]"
+      ],
+      "kind": "app,linux",
+      "location": "Brazil South",
+      "name": "[parameters('sites_sky_hubai_hml_name')]",
+      "properties": {
+        "autoGeneratedDomainNameLabelScope": "TenantReuse",
+        "clientAffinityEnabled": false,
+        "clientAffinityProxyEnabled": false,
+        "clientCertEnabled": false,
+        "clientCertMode": "Required",
+        "containerSize": 0,
+        "customDomainVerificationId": "9C8D0126DECDE3758854F57A2FED1AF085D559C569530A6AA8EB8AFC2C8DEC21",
+        "dailyMemoryTimeQuota": 0,
+        "dnsConfiguration": {},
+        "enabled": true,
+        "endToEndEncryptionEnabled": false,
+        "hostNameSslStates": [
+          {
+            "hostType": "Standard",
+            "name": "[concat(parameters('sites_sky_hubai_hml_name'), '-fuh6eydadvf0e7ey.brazilsouth-01.azurewebsites.net')]",
+            "sslState": "Disabled"
+          },
+          {
+            "hostType": "Repository",
+            "name": "[concat(parameters('sites_sky_hubai_hml_name'), '-fuh6eydadvf0e7ey.scm.brazilsouth-01.azurewebsites.net')]",
+            "sslState": "Disabled"
+          }
+        ],
+        "hostNamesDisabled": false,
+        "httpsOnly": true,
+        "hyperV": false,
+        "ipMode": "IPv4",
+        "isXenon": false,
+        "keyVaultReferenceIdentity": "SystemAssigned",
+        "outboundVnetRouting": {
+          "allTraffic": false,
+          "applicationTraffic": false,
+          "backupRestoreTraffic": false,
+          "contentShareTraffic": false,
+          "imagePullTraffic": false
+        },
+        "publicNetworkAccess": "Enabled",
+        "redundancyMode": "None",
+        "reserved": true,
+        "scmSiteAlsoStopped": false,
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('serverfarms_sky_hubai_SP_name'))]",
+        "siteConfig": {
+          "acrUseManagedIdentityCreds": false,
+          "alwaysOn": false,
+          "functionAppScaleLimit": 0,
+          "http20Enabled": false,
+          "linuxFxVersion": "DOTNETCORE|8.0",
+          "minimumElasticInstanceCount": 0,
+          "numberOfWorkers": 1
+        },
+        "storageAccountRequired": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai-hml"
+      },
+      "type": "Microsoft.Web/sites"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/ftp')]",
+      "properties": {
+        "allow": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai"
+      },
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/ftp')]",
+      "properties": {
+        "allow": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai-hml"
+      },
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/scm')]",
+      "properties": {
+        "allow": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai"
+      },
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/scm')]",
+      "properties": {
+        "allow": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai-hml"
+      },
+      "type": "Microsoft.Web/sites/basicPublishingCredentialsPolicies"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/web')]",
+      "properties": {
+        "acrUseManagedIdentityCreds": false,
+        "alwaysOn": false,
+        "autoHealEnabled": false,
+        "azureStorageAccounts": {},
+        "defaultDocuments": [
+          "Default.htm",
+          "Default.html",
+          "Default.asp",
+          "index.htm",
+          "index.html",
+          "iisstart.htm",
+          "default.aspx",
+          "index.php",
+          "hostingstart.html"
+        ],
+        "detailedErrorLoggingEnabled": false,
+        "elasticWebAppScaleLimit": 0,
+        "experiments": {
+          "rampUpRules": []
+        },
+        "ftpsState": "FtpsOnly",
+        "functionsRuntimeScaleMonitoringEnabled": false,
+        "http20Enabled": false,
+        "http20ProxyFlag": 0,
+        "httpLoggingEnabled": false,
+        "ipSecurityRestrictions": [
+          {
+            "action": "Allow",
+            "description": "Allow all access",
+            "ipAddress": "Any",
+            "name": "Allow all",
+            "priority": 2147483647
+          }
+        ],
+        "linuxFxVersion": "DOTNETCORE|8.0",
+        "loadBalancing": "LeastRequests",
+        "localMySqlEnabled": false,
+        "logsDirectorySizeLimit": 35,
+        "managedPipelineMode": "Integrated",
+        "minTlsVersion": "1.2",
+        "minimumElasticInstanceCount": 0,
+        "netFrameworkVersion": "v4.0",
+        "numberOfWorkers": 1,
+        "preWarmedInstanceCount": 0,
+        "publicNetworkAccess": "Enabled",
+        "publishingUsername": "REDACTED",
+        "remoteDebuggingEnabled": false,
+        "requestTracingEnabled": false,
+        "scmIpSecurityRestrictions": [
+          {
+            "action": "Allow",
+            "description": "Allow all access",
+            "ipAddress": "Any",
+            "name": "Allow all",
+            "priority": 2147483647
+          }
+        ],
+        "scmIpSecurityRestrictionsUseMain": false,
+        "scmMinTlsVersion": "1.2",
+        "scmType": "GitHubAction",
+        "use32BitWorkerProcess": true,
+        "virtualApplications": [
+          {
+            "physicalPath": "site\\wwwroot",
+            "preloadEnabled": false,
+            "virtualPath": "/"
+          }
+        ],
+        "vnetPrivatePortsCount": 0,
+        "vnetRouteAllEnabled": false,
+        "webSocketsEnabled": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai"
+      },
+      "type": "Microsoft.Web/sites/config"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/web')]",
+      "properties": {
+        "acrUseManagedIdentityCreds": false,
+        "alwaysOn": false,
+        "autoHealEnabled": false,
+        "azureStorageAccounts": {},
+        "defaultDocuments": [
+          "Default.htm",
+          "Default.html",
+          "Default.asp",
+          "index.htm",
+          "index.html",
+          "iisstart.htm",
+          "default.aspx",
+          "index.php",
+          "hostingstart.html"
+        ],
+        "detailedErrorLoggingEnabled": false,
+        "elasticWebAppScaleLimit": 0,
+        "experiments": {
+          "rampUpRules": []
+        },
+        "ftpsState": "FtpsOnly",
+        "functionsRuntimeScaleMonitoringEnabled": false,
+        "http20Enabled": false,
+        "http20ProxyFlag": 0,
+        "httpLoggingEnabled": false,
+        "ipSecurityRestrictions": [
+          {
+            "action": "Allow",
+            "description": "Allow all access",
+            "ipAddress": "Any",
+            "name": "Allow all",
+            "priority": 2147483647
+          }
+        ],
+        "linuxFxVersion": "DOTNETCORE|8.0",
+        "loadBalancing": "LeastRequests",
+        "localMySqlEnabled": false,
+        "logsDirectorySizeLimit": 35,
+        "managedPipelineMode": "Integrated",
+        "minTlsVersion": "1.2",
+        "minimumElasticInstanceCount": 0,
+        "netFrameworkVersion": "v4.0",
+        "numberOfWorkers": 1,
+        "preWarmedInstanceCount": 0,
+        "publicNetworkAccess": "Enabled",
+        "publishingUsername": "REDACTED",
+        "remoteDebuggingEnabled": false,
+        "requestTracingEnabled": false,
+        "scmIpSecurityRestrictions": [
+          {
+            "action": "Allow",
+            "description": "Allow all access",
+            "ipAddress": "Any",
+            "name": "Allow all",
+            "priority": 2147483647
+          }
+        ],
+        "scmIpSecurityRestrictionsUseMain": false,
+        "scmMinTlsVersion": "1.2",
+        "scmType": "GitHubAction",
+        "use32BitWorkerProcess": true,
+        "virtualApplications": [
+          {
+            "physicalPath": "site\\wwwroot",
+            "preloadEnabled": false,
+            "virtualPath": "/"
+          }
+        ],
+        "vnetPrivatePortsCount": 0,
+        "vnetRouteAllEnabled": false,
+        "webSocketsEnabled": false
+      },
+      "tags": {
+        "hidden-link: /app-insights-resource-id": "/subscriptions/5dc87b18-978f-4e64-9449-a258f1f57962/resourceGroups/AVA_RPA_SKY_RG/providers/microsoft.insights/components/sky-hubai-hml"
+      },
+      "type": "Microsoft.Web/sites/config"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/101a9e91-5db8-4d1e-b6a7-ba40eaa2699a')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-20T22:19:33.1870454Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-20T22:19:28.3930535Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/1057950e-eaf6-46d7-81bf-a12f10968484')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-04T13:20:38.3462627Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-04T13:20:33.0347213Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/36d1a153-b9ad-43ae-8651-505b7e6ec939')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-17T18:25:52.6500171Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-17T18:25:47.4691001Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/5949139a-54d5-4412-aa3b-0731883acc99')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-04T01:18:07.8650567Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-04T01:17:59.9392539Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/5ba820fb-3473-4cdd-8996-71555d4fa721')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-04T16:42:25.7382564Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-04T16:42:19.9749436Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/6a1c7ab2-ae5f-4729-a3e3-7408fc3ef47d')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-21T01:37:27.9545923Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-21T01:37:23.1554148Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/78070401-ed03-4b90-b8d4-34c60bdada09')]",
+      "properties": {
+        "active": true,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2026-01-21T19:37:52.1013287Z",
+        "message": "OneDeploy",
+        "start_time": "2026-01-21T19:37:46.0856655Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/8a4a8201-8d62-4952-a5dd-8a57db4cf924')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-24T14:25:37.4332322Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-24T14:25:31.3902589Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/8f99c1b1-606e-4a03-8506-6c39a45080e5')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-04T20:24:34.6031281Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-04T20:24:29.2448548Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/c0f8b11b-6381-4c95-aebb-5b553bd97527')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-17T15:27:26.8332403Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-17T15:27:20.9432725Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/c1107adb-e9a6-4de9-960c-f448f1077b5a')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-04T01:30:56.0151601Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-04T01:30:51.0877143Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/c6d6db02-11e6-4898-a3c2-091afe25a73a')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-20T23:43:53.152304Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-20T23:43:47.9942585Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/cb828ace-5ea8-46b8-b29f-8f7530b93efa')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2026-01-20T02:59:44.616288Z",
+        "message": "OneDeploy",
+        "start_time": "2026-01-20T02:59:37.7665337Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/cdc93053-dcd5-4cb8-8a72-618c1c3ff1d7')]",
+      "properties": {
+        "active": true,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-05T00:57:47.0378975Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-05T00:57:42.164251Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/e1435443-5af7-41e6-9b28-9495d71e4815')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-21T01:19:37.3792747Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-21T01:19:31.5201703Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/ea27906a-dbe1-477c-ba33-e580e47de6ca')]",
+      "properties": {
+        "active": false,
+        "author": "N/A",
+        "author_email": "N/A",
+        "deployer": "OneDeploy",
+        "end_time": "2025-12-20T21:41:39.7476574Z",
+        "message": "OneDeploy",
+        "start_time": "2025-12-20T21:41:34.8569182Z",
+        "status": 4
+      },
+      "type": "Microsoft.Web/sites/deployments"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_name'), '/', parameters('sites_sky_hubai_name'), '-bngqhfhva7cwgsfr.brazilsouth-01.azurewebsites.net')]",
+      "properties": {
+        "hostNameType": "Verified",
+        "siteName": "sky-hubai"
+      },
+      "type": "Microsoft.Web/sites/hostNameBindings"
+    },
+    {
+      "apiVersion": "2024-11-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', parameters('sites_sky_hubai_hml_name'))]"
+      ],
+      "location": "Brazil South",
+      "name": "[concat(parameters('sites_sky_hubai_hml_name'), '/', parameters('sites_sky_hubai_hml_name'), '-fuh6eydadvf0e7ey.brazilsouth-01.azurewebsites.net')]",
+      "properties": {
+        "hostNameType": "Verified",
+        "siteName": "sky-hubai-hml"
+      },
+      "type": "Microsoft.Web/sites/hostNameBindings"
+    }
+  ],
+  "variables": {}
+}
