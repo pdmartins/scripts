@@ -6,14 +6,15 @@
 		{
 			"icon": "github",
 			"extensions": [
-				".github-project"
+				".copilot-core",
+				".copilot-project"
 			],
 			"format": "svg"
 		}
 	],
 	"github.copilot.chat.commitMessageGeneration.instructions": [
 		{
-			"file": ".github/.source-control/commit-prompt.md"
+			"file": ".github/.copilot-core/.source-control/commit-prompt.md"
 		}
 	]
 }

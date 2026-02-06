@@ -1,10 +1,8 @@
-[submodule ".github"]
-	path = .github
+[submodule ".github/.copilot-core"]
+	path = .github/.copilot-core
 	url = https://github.com/pdmartins/.github.git
 	branch = main
-	ignore = all
-[submodule ".github-project"]
-	path = .github-project
+[submodule ".github/.copilot-project"]
+	path = .github/.copilot-project
 	url = https://github.com/pdmartins/.github-project.git
 	branch = scripts
-	ignore = all
